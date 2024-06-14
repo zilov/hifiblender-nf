@@ -1,0 +1,91 @@
+{
+    "name": "nf-core-hifiblender",
+    "homePage": "https://github.com/zilov/nf-core-hifiblender",
+    "repos": {
+        "https://github.com/nf-core/modules.git": {
+            "modules": {
+                "nf-core": {
+                    "busco/busco": {
+                        "branch": "master",
+                        "git_sha": "17486961b8b1ab1aae258c83a7e947b40d8ab670",
+                        "installed_by": ["modules"]
+                    },
+                    "busco/generateplot": {
+                        "branch": "master",
+                        "git_sha": "1fab6356ab837d90e9be9636dd7e7713a68dbf7b",
+                        "installed_by": ["modules"]
+                    },
+                    "fastqc": {
+                        "branch": "master",
+                        "git_sha": "f4ae1d942bd50c5c0b9bd2de1393ce38315ba57c",
+                        "installed_by": ["modules"]
+                    },
+                    "flye": {
+                        "branch": "master",
+                        "git_sha": "3f5420aa22e00bd030a2556dfdffc9e164ec0ec5",
+                        "installed_by": ["modules"]
+                    },
+                    "genomescope2": {
+                        "branch": "master",
+                        "git_sha": "c95215baf20e6d8cf2ae0e8411d03c5d9ef21d4a",
+                        "installed_by": ["modules"]
+                    },
+                    "hifiasm": {
+                        "branch": "master",
+                        "git_sha": "aecb06fcdb995ff3e3df7c7a1fd119367d6d1996",
+                        "installed_by": ["modules"]
+                    },
+                    "merfin/hist": {
+                        "branch": "master",
+                        "git_sha": "7ca98cf79d474ac07947b883a9efc7eda45cf843",
+                        "installed_by": ["modules"]
+                    },
+                    "meryl/count": {
+                        "branch": "master",
+                        "git_sha": "2910aa889fd3497727d87854148a0e0aa1105da3",
+                        "installed_by": ["modules"]
+                    },
+                    "meryl/histogram": {
+                        "branch": "master",
+                        "git_sha": "1c72d95476a2edf92ee4f08dc4321b3c50cd3c13",
+                        "installed_by": ["modules"]
+                    },
+                    "meryl/unionsum": {
+                        "branch": "master",
+                        "git_sha": "1c72d95476a2edf92ee4f08dc4321b3c50cd3c13",
+                        "installed_by": ["modules"]
+                    },
+                    "multiqc": {
+                        "branch": "master",
+                        "git_sha": "b7ebe95761cd389603f9cc0e0dc384c0f663815a",
+                        "installed_by": ["modules"]
+                    },
+                    "quast": {
+                        "branch": "master",
+                        "git_sha": "3f5420aa22e00bd030a2556dfdffc9e164ec0ec5",
+                        "installed_by": ["modules"]
+                    }
+                }
+            },
+            "subworkflows": {
+                "nf-core": {
+                    "utils_nextflow_pipeline": {
+                        "branch": "master",
+                        "git_sha": "5caf7640a9ef1d18d765d55339be751bb0969dfa",
+                        "installed_by": ["subworkflows"]
+                    },
+                    "utils_nfcore_pipeline": {
+                        "branch": "master",
+                        "git_sha": "5caf7640a9ef1d18d765d55339be751bb0969dfa",
+                        "installed_by": ["subworkflows"]
+                    },
+                    "utils_nfvalidation_plugin": {
+                        "branch": "master",
+                        "git_sha": "5caf7640a9ef1d18d765d55339be751bb0969dfa",
+                        "installed_by": ["subworkflows"]
+                    }
+                }
+            }
+        }
+    }
+}

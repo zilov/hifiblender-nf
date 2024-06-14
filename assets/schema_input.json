@@ -1,0 +1,95 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema",
+    "$id": "https://raw.githubusercontent.com/zilov/nf-core-hifiblender/master/assets/schema_input.json",
+    "title": "nf-core/hifiblender pipeline - params.input schema",
+    "description": "Schema for the file provided with params.input",
+    "type": "array",
+    "items": {
+        "type": "object",
+        "properties": {
+            "sample": {
+                "type": "string",
+                "pattern": "^\\S+$",
+                "errorMessage": "Sample name must be provided and cannot contain spaces",
+                "meta": ["id"]
+            },
+            "assembler": {
+                "type": "string",
+                "default": "hifiasm",
+                "enum": ["hifiasm", "verkko", "flye", "nextdenovo", "all"],
+                "errorMessage": "Choose assembler from the list ['hifiasm', 'verkko', 'flye', 'nextdenovo', 'all']"
+            },
+            "hifi_reads": {
+                "type": "string",
+                "format": "file-path",
+                "exists": true,
+                "pattern": "^\\S+\\.f(ast)?q\\(.gz)$",
+                "errorMessage": "FastQ file for hifi reads cannot contain spaces and must have extension '.fq' or '.fastq', it may be gzipped"
+            },
+            "ont_reads": {
+                "type": "string",
+                "format": "file-path",
+                "exists": true,
+                "pattern": "^\\S+\\.f(ast)?q\\(.gz)$",
+                "errorMessage": "FastQ file for ONT reads cannot contain spaces and must have extension '.fq' or '.fastq', it may be gzipped"
+            },
+            "illumina_reads_1": {
+                "type": "string",
+                "format": "file-path",
+                "exists": true,
+                "pattern": "^\\S+\\1.f(ast)?q\\(.gz)$",
+                "errorMessage": "FastQ file for reads 1 cannot contain spaces and must have extension '1.fq' or '1.fastq', it may be gzipped"
+            },
+            "illumina_reads_2": {
+                "type": "string",
+                "format": "file-path",
+                "exists": true,
+                "pattern": "^\\S+\\2.f(ast)?q\\(.gz)$",
+                "errorMessage": "FastQ file for reads 1 cannot contain spaces and must have extension '2.fq' or '2.fastq', it may be gzipped"
+            },
+            "hic_reads_1": {
+                "type": "string",
+                "format": "file-path",
+                "exists": true,
+                "pattern": "^\\S+\\1.f(ast)?q\\(.gz)$",
+                "errorMessage": "FastQ file for reads 1 cannot contain spaces and must have extension '1.fq' or '1.fastq', it may be gzipped"
+            },
+            "hic_reads_2": {
+                "type": "string",
+                "format": "file-path",
+                "exists": true,
+                "pattern": "^\\S+\\2.f(ast)?q\\(.gz)$",
+                "errorMessage": "FastQ file for reads 1 cannot contain spaces and must have extension '2.fq' or '2.fastq', it may be gzipped"
+            },
+            "busco_lineage": {
+                "type": "string",
+                "default": "auto",
+                "pattern": "^\\S+\\(_odb10)"
+            },
+            "busco_lineage_local": {
+                "type": "string",
+                "format": "directory-path",
+                "pattern": "^\\S+\\(_odb10)"
+            },
+            "mery_db_local": {
+                "type": "string",
+                "format": "directory-path",
+                "pattern": "^\\S+\\.meryl",
+                "errorMessage": "meryl_db_local path should end with .meryl"
+            },
+            "assembly": {
+                "type": "string",
+                "format": "file-path",
+                "pattern": "^\\S+\\.fa(sta)(.gz)",
+                "errorMessage": "FastA file of assembly could be gzipped and should end with '.fa' or '.fasta'"
+            },
+            "k": {
+                "type": "number",
+                "minimum": 15,
+                "maximum": 100,
+                "errorMessage": "k value should be between 15 and 100"
+            }
+        },
+        "required": ["sample", "fastq_1"]
+    }
+}
