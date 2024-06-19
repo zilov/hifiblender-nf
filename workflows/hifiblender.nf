@@ -9,7 +9,8 @@ include { paramsSummaryMap       } from 'plugin/nf-validation'
 include { paramsSummaryMultiqc   } from '../subworkflows/nf-core/utils_nfcore_pipeline'
 include { softwareVersionsToYAML } from '../subworkflows/nf-core/utils_nfcore_pipeline'
 include { methodsDescriptionText } from '../subworkflows/local/utils_nfcore_hifiblender_pipeline'
-include { MERYL_COUNT                 } from '../modules/meryl/main'
+include { MERYL_COUNT            } from '../modules/nf-core/meryl/count/main.nf'
+include { PARSE_INPUT            } from "../subworkflows/local/parse_input.nf"
 // include { GENOMESCOPE2          } from '../modules/genomescope2/main'
 // include { VERKKO                } from '../modules/verkko/main'
 // include { HIFIASM               } from '../modules/hifiasm/main'
@@ -34,7 +35,6 @@ workflow HIFIBLENDER {
     ch_samplesheet // channel: samplesheet read in from --input
 
     main:
-
     ch_versions = Channel.empty()
     ch_multiqc_files = Channel.empty()
 
@@ -44,7 +44,15 @@ workflow HIFIBLENDER {
     // submodule for hic-scaffolding
     // submodule for illumina assemmbly (prokaryotes)
 
-    println samplesheet
+    (ch_sample_map, ch_fastqc_input) = PARSE_INPUT(ch_samplesheet)        
+    
+    //  
+    // MODULE: Run FastQC
+    //
+    FASTQC (
+        ch_fastqc_input
+    )
+
 
     //
     // MODULE: Run Meryl db build 
@@ -53,9 +61,9 @@ workflow HIFIBLENDER {
     // if several reads formats provided, combines databases with meryl union resulting in hybrid database
     // for parental phasing creates meryl database for each parent - used in verkko
     //
-    MERYL (
-        ch_samplesheet
-    )
+    // MERYL_COUNT (
+    //     ch_samplesheet
+    // )
 
     //
     // MODULE: Run genomescope2

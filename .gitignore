@@ -1,0 +1,5 @@
+.nextflow.lo*
+test_outdir
+work
+null
+.nextflow
