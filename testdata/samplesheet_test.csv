@@ -1,0 +1,5 @@
+sample,assembler,hifi_reads,ont_reads,illumina_reads_1,illumina_reads_2,hic_reads_1,hic_reads_2,busco_lineage,busco_lineage_local,meryl_db_local,assembly,k
+hifi_flye,flye,/mnt/c/Users/zilov/OneDrive/github/hifiblender-nf/testdata/hifi_reads_test.fasta.gz,,,,,,,,,,23
+ont_hifiasm,hifiasm,,/mnt/c/Users/zilov/OneDrive/github/hifiblender-nf/testdata/nanopore_reads_test.fasta.gz,,,,,,,,,23
+hifi_illumina_verkko,flye,/mnt/c/Users/zilov/OneDrive/github/hifiblender-nf/testdata/hifi_reads_test.fasta.gz,,/mnt/c/Users/zilov/OneDrive/github/hifiblender-nf/testdata/illumina_test_1.fastq.gz,/mnt/c/Users/zilov/OneDrive/github/hifiblender-nf/testdata/illumina_test_2.fastq.gz,,,,,,,23
+hifi_hic_flye,flye,/mnt/c/Users/zilov/OneDrive/github/hifiblender-nf/testdata/hifi_reads_test.fasta.gz,,,,/mnt/c/Users/zilov/OneDrive/github/hifiblender-nf/testdata/hic_test_1.fasstq.gz,/mnt/c/Users/zilov/OneDrive/github/hifiblender-nf/testdata/hic_test_2.fastq.gz,,,,,23
