@@ -23,38 +23,46 @@ workflow PARSE_INPUT {
                 ]
             }
 
+
+        ch_sample_reads = ch_sample_maps
+            .map { sampleMap ->
+                def reads = [sampleMap.hifi, sampleMap.ont, sampleMap.illumina_1, sampleMap.illumina_2] - null
+                return [ sampleMap.sample, reads ]
+            }
+
         
-        // Extract reads for FastQC
-        ch_hifi_fastqc = ch_sample_maps
+        ch_hifi = ch_sample_maps
             .filter { it.hifi }
             .map { sampleMap ->
                 [ sampleMap.sample, [ sampleMap.hifi ] ]
             }
         
-        ch_ont_fastqc = ch_sample_maps
+        ch_ont = ch_sample_maps
             .filter { it.ont }
             .map { sampleMap ->
                 [ sampleMap.sample, [ sampleMap.ont ] ]
             }
 
-        ch_illumina_fastqc = ch_sample_maps
+        ch_illumina = ch_sample_maps
             .filter { it.illumina_1 }
             .map { sampleMap ->
                 def reads = sampleMap.illumina_2 != null ? [ sampleMap.illumina_1, sampleMap.illumina_2 ] : [ sampleMap.illumina_1 ]
                 [ sampleMap.sample, reads ]
             }
 
-        ch_hic_fastqc = ch_sample_maps
+        ch_hic = ch_sample_maps
             .filter { it.hic_1 && it.hic_2 }
             .map { sampleMap ->
                 [ sampleMap.sample, [ sampleMap.hic_1, sampleMap.hic_2 ] ]
             }
 
-        // Combine all FastQC channels
-        ch_fastqc_input = ch_hifi_fastqc.concat(ch_ont_fastqc, ch_illumina_fastqc, ch_hic_fastqc).view()
+        
 
+        // Combine all FastQC channels
+        ch_fastqc_input = ch_illumina.concat(ch_hic).view()
 
     emit:
         sampleMap = ch_sample_maps
-        fastqc_reads = ch_fastqc_input
+        ch_sample_reads = ch_sample_reads
+        ch_fastqc_input = ch_fastqc_input
 }

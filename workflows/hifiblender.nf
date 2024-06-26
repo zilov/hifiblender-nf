@@ -10,6 +10,9 @@ include { paramsSummaryMultiqc   } from '../subworkflows/nf-core/utils_nfcore_pi
 include { softwareVersionsToYAML } from '../subworkflows/nf-core/utils_nfcore_pipeline'
 include { methodsDescriptionText } from '../subworkflows/local/utils_nfcore_hifiblender_pipeline'
 include { MERYL_COUNT            } from '../modules/nf-core/meryl/count/main.nf'
+include { MERYL_HISTOGRAM        } from "../modules/nf-core/meryl/histogram/main.nf"
+include { MERYL_UNIONSUM         } from "../modules/nf-core/meryl/unionsum/main.nf"
+include { GENOMESCOPE2           } from "../modules/nf-core/genomescope2/main.nf"
 include { PARSE_INPUT            } from "../subworkflows/local/parse_input.nf"
 // include { GENOMESCOPE2          } from '../modules/genomescope2/main'
 // include { VERKKO                } from '../modules/verkko/main'
@@ -44,7 +47,7 @@ workflow HIFIBLENDER {
     // submodule for hic-scaffolding
     // submodule for illumina assemmbly (prokaryotes)
 
-    (ch_sample_map, ch_fastqc_input) = PARSE_INPUT(ch_samplesheet)        
+    (ch_sample_map, ch_sample_reads, ch_fastqc_input) = PARSE_INPUT(ch_samplesheet)        
     
     //  
     // MODULE: Run FastQC
@@ -60,10 +63,25 @@ workflow HIFIBLENDER {
     // outputs meryl kmer database and histogram
     // if several reads formats provided, combines databases with meryl union resulting in hybrid database
     // for parental phasing creates meryl database for each parent - used in verkko
-    //
-    // MERYL_COUNT (
-    //     ch_samplesheet
-    // )
+
+    MERYL_COUNT (
+        ch_sample_reads, 23
+    )
+
+    ch_meryl_db = MERYL_COUNT.out.meryl_db.view()
+
+    // sum pair end meryl databases
+    MERYL_UNIONSUM(
+        ch_meryl_db, 23
+    )
+    
+    ch_meryl_sample_db = MERYL_UNIONSUM.out.meryl_db.view((sample, dbs) -> "$sample dbs $dbs")
+
+    MERYL_HISTOGRAM (
+        ch_meryl_sample_db, 23
+    )
+
+    ch_meryl_sample_histogram = MERYL_HISTOGRAM.out.hist.view((sample, hist) -> "$sample histogram $hist")
 
     //
     // MODULE: Run genomescope2
@@ -71,9 +89,9 @@ workflow HIFIBLENDER {
     // outputs kmers stats - coverage value for QV estimation and others
     //
 
-    // GENOMESCOPE2 (
-    //     ch_samplesheet
-    // )
+    GENOMESCOPE2 (
+        ch_meryl_sample_histogram
+    )
 
     //
     // MODULE: Run hifiasm 
