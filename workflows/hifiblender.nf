@@ -19,7 +19,7 @@ include { PARSE_INPUT            } from "../subworkflows/local/parse_input.nf"
 include { HIFIASM               } from '../modules/nf-core/hifiasm/main.nf'
 include { FLYE                  } from '../modules/nf-core/flye/main.nf'
 // include { NEXTDENOVO            } from '../modules/nextdenovo/main'
-// include { QUAST                 } from '../modules/quast/main'
+ include { QUAST                 } from '../modules/nf-core/quast/main.nf'
 // include { GFASTAT               } from '../modules/gfastat/main'
 // include { BUSCO                 } from '../modules/busco/main'
 // include { COMPLEASM             } from '../modules/compleasm/main'
@@ -228,9 +228,25 @@ workflow HIFIBLENDER {
     // MODULE: Run QUAST
     //
 
-    // QUAST (
-    //     ch_assembly
-    // )
+    quast_input_ch = ch_sample_map
+        .map { sample ->
+            def meta = sample.sample
+            def consensus = sample.assembly ?: []  // Path to assembled genome
+            def reference = sample.reference ?: []  // Path to reference genome, if available
+            def gff = sample.gff ?: []  // Path to GFF file, if available
+            
+            [
+                [ meta, consensus ],
+                [ meta, reference ],
+                [ meta, gff ]
+            ]
+        }
+
+    QUAST (
+        quast_input_ch.map { it[0] },  // meta, consensus
+        quast_input_ch.map { it[1] },  // meta, reference (fasta)
+        quast_input_ch.map { it[2] }   // meta, gff
+    )
 
     if ('busco' in tools) {
 
