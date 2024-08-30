@@ -40,6 +40,18 @@
                     "type": "string",
                     "description": "MultiQC report title. Printed as page header, used for filename if not otherwise specified.",
                     "fa_icon": "fas fa-file-signature"
+                },
+                "k": {
+                    "type": "integer",
+                    "default": 23,
+                    "description": "K-mer size for k-mer based analyses",
+                    "fa_icon": "fas fa-dna"
+                },
+                "tools": {
+                    "type": "string",
+                    "description": "Comma-separated list of tools to run",
+                    "help_text": "Valid tools are: qv, hifiasm, flye, nextdenovo, verkko, busco, compleasm, sniffles, slizer",
+                    "fa_icon": "fas fa-toolbox"
                 }
             }
         },

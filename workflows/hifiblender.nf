@@ -41,13 +41,37 @@ workflow HIFIBLENDER {
     ch_versions = Channel.empty()
     ch_multiqc_files = Channel.empty()
 
-    // THINK ABOUT: 
+    // TODO: 
     // submodule for nanopore error correction
     // submodule for assembly polishing
     // submodule for hic-scaffolding
     // submodule for illumina assemmbly (prokaryotes)
 
     (ch_sample_map, ch_sample_reads, ch_fastqc_input) = PARSE_INPUT(ch_samplesheet)        
+
+    // Parse tools list
+
+    // Define valid tools and assemblers
+    def valid_tools = ['qv', 'hifiasm', 'flye', 'nextdenovo', 'verkko', 'busco', 'compleasm', 'sniffles', 'slizer']
+    def assemblers = ['hifiasm', 'flye', 'nextdenovo', 'verkko']
+
+    // Parse the tools parameter
+    def tools = params.tools instanceof List ? params.tools : params.tools.split(',').collect{ it.trim().toLowerCase() }
+
+    // Validate tools
+    def invalid_tools = tools - valid_tools
+    if (!invalid_tools.isEmpty()) {
+        error "Invalid tool(s) specified: ${invalid_tools.join(', ')}. Valid tools are: ${valid_tools.join(', ')}"
+    }
+
+    // Check if any assembler is specified, if not, add hifiasm
+    if (tools.intersect(assemblers).isEmpty()) {
+        tools.add('hifiasm')
+        log.info "No assembler specified. Adding default assembler: hifiasm"
+    }
+
+    log.info "Tools to be run: ${tools.join(', ')}"
+
     
     //  
     // MODULE: Run FastQC
@@ -56,108 +80,148 @@ workflow HIFIBLENDER {
         ch_fastqc_input
     )
 
-
     //
-    // MODULE: Run Meryl db build 
-    // takes as input illumina, ont or hifi reads, k value (default is 23)
-    // outputs meryl kmer database and histogram
-    // if several reads formats provided, combines databases with meryl union resulting in hybrid database
-    // for parental phasing creates meryl database for each parent - used in verkko
-
-    MERYL_COUNT (
-        ch_sample_reads, 23
-    )
-
-    ch_meryl_db = MERYL_COUNT.out.meryl_db.view()
-
-    // sum pair end meryl databases
-    MERYL_UNIONSUM(
-        ch_meryl_db, 23
-    )
-    
-    ch_meryl_sample_db = MERYL_UNIONSUM.out.meryl_db.view((sample, dbs) -> "$sample dbs $dbs")
-
-    MERYL_HISTOGRAM (
-        ch_meryl_sample_db, 23
-    )
-
-    ch_meryl_sample_histogram = MERYL_HISTOGRAM.out.hist.view((sample, hist) -> "$sample histogram $hist")
-
-    //
-    // MODULE: Run genomescope2
-    // takes as input kmers histogram from meryl and k value (default is 23)
-    // outputs kmers stats - coverage value for QV estimation and others
+    // SUBMODULE: QV
+    // builds k-mer database with meryl, calculates coverage with genomescope and assess qv with merfin after assembly of genome 
     //
 
-    GENOMESCOPE2 (
-        ch_meryl_sample_histogram
-    )
+    if ('qv' in tools) {
 
-    //
-    // MODULE: Run hifiasm 
-    // input for several modes - parental and maternal, ont-only, hifi-only, ont-hifi hybrid, hic
-    // outputs assembly in several formats
-    //
+        //
+        // MODULE: Run Meryl db build 
+        // takes as input illumina, ont or hifi reads, k value (default is 23)
+        // outputs meryl kmer database and histogram
+        // if several reads formats provided, combines databases with meryl union resulting in hybrid database
+        // for parental phasing creates meryl database for each parent - used in verkko
+        //
 
-    hifiasm_input_ch = ch_sample_map
-        .filter { sample -> sample.hifi || sample.ont }
-        .map { sample ->
-            def reads = sample.hifi ?: sample.ont
-            [
-                [sample.sample, reads],
-                sample.parental ?: [],
-                sample.maternal ?: [],
-                sample.hic_1 ?: [],
-                sample.hic_2 ?: []
-            ]
-        }
-    
-    HIFIASM (
-        hifiasm_input_ch.map { it[0] },  // meta, reads
-        hifiasm_input_ch.map { it[1] },  // paternal_kmer_dump
-        hifiasm_input_ch.map { it[2] },  // maternal_kmer_dump
-        hifiasm_input_ch.map { it[3] },  // hic_read1
-        hifiasm_input_ch.map { it[4] }   // hic_read2
-    )
+        MERYL_COUNT (
+            ch_sample_reads, params.k
+        )
 
-    //
-    // MODULE: Run verkko
-    // input for several modes - ont-only, hifi-only, ont-hifi hybrid, hic
-    // outputs assembly in several formats
-    //
+        ch_meryl_db = MERYL_COUNT.out.meryl_db.view()
 
-    // VERKKO (
-    //     ch_samplesheet
-    // )
+        // sum pair end meryl databases
+        MERYL_UNIONSUM(
+            ch_meryl_db, params.k
+        )
+        
+        ch_meryl_sample_db = MERYL_UNIONSUM.out.meryl_db.view((sample, dbs) -> "$sample dbs $dbs")
 
-    //
-    // MODULE: Run nextdenovo
-    //
+        MERYL_HISTOGRAM (
+            ch_meryl_sample_db, params.k
+        )
 
-    // NEXTDENOVO (
-    //     ch_samplesheet
-    // )
+        ch_meryl_sample_histogram = MERYL_HISTOGRAM.out.hist.view((sample, hist) -> "$sample histogram $hist")
 
-    //
-    // MODULE: Run flye
-    //
+        //
+        // MODULE: Run genomescope2
+        // takes as input kmers histogram from meryl and k value (default is 23)
+        // outputs kmers stats - coverage value for QV estimation and others
+        //
 
-    flye_input_ch = ch_sample_map
-    .filter { sample -> (sample.hifi || sample.ont) }
-    .map { sample ->
-        def reads = sample.hifi ?: sample.ont
-        def mode = sample.hifi ? '--pacbio-hifi' : '--nano-raw'
-        [
-            [ id: sample.sample ],  // meta
-            reads,                  // reads
-            mode                    // mode
-        ]
+        GENOMESCOPE2 (
+            ch_meryl_sample_histogram
+        )
+        
+        
+        //
+        // MODULE: Run MERFIN
+        // input assembly, coverage value and meryl database (hybrid if several reads types)
+        // outputs QV, QV*, K completeness values
+        //
+
+
+        // MERFIN (
+        //     ch_samplesheet
+        //     ch_assembly
+        //     ch_meryl
+        //     ch_genomescope
+        // )
+
     }
 
-    FLYE (
-        flye_input_ch.map { it[0..1] },  // meta, reads
-        flye_input_ch.map { it[2] }      // mode
-    )
+
+    if ('hifiasm' in tools) {
+        //
+        // MODULE: Run hifiasm 
+        // input for several modes - parental and maternal, ont-only, hifi-only, ont-hifi hybrid, hic
+        // outputs assembly in several formats
+        //
+
+        hifiasm_input_ch = ch_sample_map
+            .filter { sample -> sample.hifi || sample.ont }
+            .map { sample ->
+                def reads = sample.hifi ?: sample.ont
+                [
+                    [sample.sample, reads],
+                    sample.parental ?: [],
+                    sample.maternal ?: [],
+                    sample.hic_1 ?: [],
+                    sample.hic_2 ?: []
+                ]
+            }
+        
+        HIFIASM (
+            hifiasm_input_ch.map { it[0] },  // meta, reads
+            hifiasm_input_ch.map { it[1] },  // paternal_kmer_dump
+            hifiasm_input_ch.map { it[2] },  // maternal_kmer_dump
+            hifiasm_input_ch.map { it[3] },  // hic_read1
+            hifiasm_input_ch.map { it[4] }   // hic_read2
+        )
+    }
+
+    if ('verkko' in tools) {
+
+        //
+        // MODULE: Run verkko
+        // input for several modes - ont-only, hifi-only, ont-hifi hybrid, hic
+        // outputs assembly in several formats
+        //
+
+        // VERKKO (
+        //     ch_samplesheet
+        // )
+
+    }
+    
+    if ('nextdenovo' in tools) {
+        
+        //
+        // MODULE: Run nextdenovo
+        //
+
+        // NEXTDENOVO (
+        //     ch_samplesheet
+        // )
+
+    }
+
+    if ('flye' in tools) {
+
+        //
+        // MODULE: Run flye
+        //
+
+        flye_input_ch = ch_sample_map
+        .filter { sample -> (sample.hifi || sample.ont) }
+        .map { sample ->
+            def reads = sample.hifi ?: sample.ont
+            def mode = sample.hifi ? '--pacbio-hifi' : '--nano-raw'
+            [
+                sample.sample,  // meta
+                reads,                  // reads
+                mode                    // mode
+            ]
+        }
+
+        FLYE (
+            flye_input_ch.map { it[0..1] },  // meta, reads
+            flye_input_ch.map { it[2] }      // mode
+        )
+
+    }
+
 
 
     //
@@ -168,47 +232,62 @@ workflow HIFIBLENDER {
     //     ch_assembly
     // )
 
-    //
-    // MODULE: Run BUSCO
-    // on local lineage db if provided, or will download db (could define it with auto mode)
-    //
+    if ('busco' in tools) {
 
-    // BUSCO (
-    //     ch_assembly
-    // )
+        //
+        // MODULE: Run BUSCO
+        // on local lineage db if provided, or will download db (could define it with auto mode)
+        //
 
-    //
-    // MODULE: Run COMPLEASM
-    // on local lineage db if provided, or will download db (could define it with auto mode)
-    //
+        // BUSCO (
+        //     ch_assembly
+        // )
 
-    // COMPLEASM (
-    //     ch_assembly
-    // )
+    }
 
-    //
-    // MODULE: Run SLIZER
-    // assembly and reads are input if ONT and HIFI reads, ONT is used
-    // outputs large structural variations in VCF
-    //
+    if ('compleasm' in tools) {
 
-    // SLIZER (
-    //     ch_samplesheet
-    //     ch_assembly
-    // )
+        //
+        // MODULE: Run COMPLEASM
+        // on local lineage db if provided, or will download db (could define it with auto mode)
+        //
 
-    //
-    // MODULE: Run MERFIN
-    // input assembly, coverage value and meryl database (hybrid if several reads types)
-    // outputs QV, QV*, K completeness values
-    //
-    
-    // MERFIN (
-    //     ch_samplesheet
-    //     ch_assembly
-    //     ch_meryl
-    //     ch_genomescope
-    // )
+        // COMPLEASM (
+        //     ch_assembly
+        // )
+
+    }
+
+
+    if ('sniffles' in tools) {
+
+        //
+        // MODULE: Run SNIFFLES
+        // assembly and reads are input if ONT and HIFI reads, ONT is used
+        // outputs large structural variations in VCF
+        //
+
+        // SNIFFLES (
+        //     ch_samplesheet
+        //     ch_assembly
+        // )
+
+    }
+
+    if ('slizer' in tools) {
+
+        //
+        // MODULE: Run SLIZER
+        // assembly and reads are input if ONT and HIFI reads, HIFI is used
+        // outputs low and high coverage regions based on z-score
+        //
+
+        // SLIZER (
+        //     ch_samplesheet
+        //     ch_assembly
+        // )
+
+    }
 
 
     //
