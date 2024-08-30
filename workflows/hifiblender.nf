@@ -16,7 +16,7 @@ include { GENOMESCOPE2           } from "../modules/nf-core/genomescope2/main.nf
 include { PARSE_INPUT            } from "../subworkflows/local/parse_input.nf"
 // include { GENOMESCOPE2          } from '../modules/genomescope2/main'
 // include { VERKKO                } from '../modules/verkko/main'
-// include { HIFIASM               } from '../modules/hifiasm/main'
+include { HIFIASM               } from '../modules/nf-core/hifiasm/main.nf'
 // include { FLYE                  } from '../modules/flye/main'
 // include { NEXTDENOVO            } from '../modules/nextdenovo/main'
 // include { QUAST                 } from '../modules/quast/main'
@@ -99,9 +99,26 @@ workflow HIFIBLENDER {
     // outputs assembly in several formats
     //
 
-    // HIFIASM (
-    //     ch_samplesheet
-    // )
+    hifiasm_input_ch = ch_sample_map
+        .filter { sample -> sample.hifi || sample.ont }
+        .map { sample ->
+            def reads = sample.hifi ?: sample.ont
+            [
+                [sample.sample, reads],
+                sample.parental ?: [],
+                sample.maternal ?: [],
+                sample.hic_1 ?: [],
+                sample.hic_2 ?: []
+            ]
+        }
+    
+    HIFIASM (
+        hifiasm_input_ch.map { it[0] },  // meta, reads
+        hifiasm_input_ch.map { it[1] },  // paternal_kmer_dump
+        hifiasm_input_ch.map { it[2] },  // maternal_kmer_dump
+        hifiasm_input_ch.map { it[3] },  // hic_read1
+        hifiasm_input_ch.map { it[4] }   // hic_read2
+    )
 
     //
     // MODULE: Run verkko
