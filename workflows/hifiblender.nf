@@ -17,7 +17,7 @@ include { PARSE_INPUT            } from "../subworkflows/local/parse_input.nf"
 // include { GENOMESCOPE2          } from '../modules/genomescope2/main'
 // include { VERKKO                } from '../modules/verkko/main'
 include { HIFIASM               } from '../modules/nf-core/hifiasm/main.nf'
-// include { FLYE                  } from '../modules/flye/main'
+include { FLYE                  } from '../modules/nf-core/flye/main.nf'
 // include { NEXTDENOVO            } from '../modules/nextdenovo/main'
 // include { QUAST                 } from '../modules/quast/main'
 // include { GFASTAT               } from '../modules/gfastat/main'
@@ -142,9 +142,23 @@ workflow HIFIBLENDER {
     // MODULE: Run flye
     //
 
-    // FLYE (
-    //     ch_samplesheet
-    // )
+    flye_input_ch = ch_sample_map
+    .filter { sample -> (sample.hifi || sample.ont) }
+    .map { sample ->
+        def reads = sample.hifi ?: sample.ont
+        def mode = sample.hifi ? '--pacbio-hifi' : '--nano-raw'
+        [
+            [ id: sample.sample ],  // meta
+            reads,                  // reads
+            mode                    // mode
+        ]
+    }
+
+    FLYE (
+        flye_input_ch.map { it[0..1] },  // meta, reads
+        flye_input_ch.map { it[2] }      // mode
+    )
+
 
     //
     // MODULE: Run QUAST
