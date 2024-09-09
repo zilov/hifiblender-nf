@@ -1,0 +1,189 @@
+nextflow_process {
+
+    name "Test Process VERKKO"
+    script "../main.nf"
+    process "VERKKO"
+    config "./nextflow.config"
+    tag "verkko"
+    tag "modules"
+    tag "modules_nfcore"
+
+    test("verkko_hifi_only") {
+        when {
+            params {
+                outdir = "$outputDir"
+            }
+            process {
+                """
+                input[0] = [ [ id:'test' ], // meta map
+                             file(params.test_data['homo_sapiens']['pacbio']['hifi'], checkIfExists: true)
+                           ]
+                input[1] = [] // ONT reads
+                input[2] = [] // HiC reads 1
+                input[3] = [] // HiC reads 2
+                input[4] = [] // PoreC reads
+                input[5] = [] // Paternal hapmer
+                input[6] = [] // Maternal hapmer
+                input[7] = [] // Telomere motif
+                input[8] = [] // Reference genome
+                """
+            }
+        }
+
+        then {
+            assertAll(
+                { assert process.success },
+                { assert path(process.out.assembly.get(0).get(1)).exists() },
+                { assert path(process.out.graph.get(0).get(1)).exists() },
+                { assert path("${process.out.assembly.get(0).get(1)}").text =~ /^>/ }, // Check if assembly file starts with a FASTA header
+                { assert snapshot(process.out.versions).match() }
+            )
+        }
+    }
+
+    test("verkko_hifi_ont") {
+        when {
+            params {
+                outdir = "$outputDir"
+            }
+            process {
+                """
+                input[0] = [ [ id:'test' ],
+                             file(params.test_data['homo_sapiens']['pacbio']['hifi'], checkIfExists: true)
+                           ]
+                input[1] = [ [ id:'test' ],
+                             file(params.test_data['homo_sapiens']['ont']['reads'], checkIfExists: true)
+                           ]
+                input[2] = [] // HiC reads 1
+                input[3] = [] // HiC reads 2
+                input[4] = [] // PoreC reads
+                input[5] = [] // Paternal hapmer
+                input[6] = [] // Maternal hapmer
+                input[7] = [] // Telomere motif
+                input[8] = [] // Reference genome
+                """
+            }
+        }
+
+        then {
+            assertAll(
+                { assert process.success },
+                { assert path(process.out.assembly.get(0).get(1)).exists() },
+                { assert path(process.out.graph.get(0).get(1)).exists() },
+                { assert path("${process.out.assembly.get(0).get(1)}").text =~ /^>/ },
+                { assert snapshot(process.out.versions).match() }
+            )
+        }
+    }
+
+    test("verkko_hifi_hic") {
+        when {
+            params {
+                outdir = "$outputDir"
+            }
+            process {
+                """
+                input[0] = [ [ id:'test' ],
+                             file(params.test_data['homo_sapiens']['pacbio']['hifi'], checkIfExists: true)
+                           ]
+                input[1] = [] // ONT reads
+                input[2] = [ [ id:'test' ],
+                             file(params.test_data['homo_sapiens']['hic']['reads_1'], checkIfExists: true)
+                           ]
+                input[3] = [ [ id:'test' ],
+                             file(params.test_data['homo_sapiens']['hic']['reads_2'], checkIfExists: true)
+                           ]
+                input[4] = [] // PoreC reads
+                input[5] = [] // Paternal hapmer
+                input[6] = [] // Maternal hapmer
+                input[7] = [] // Telomere motif
+                input[8] = [] // Reference genome
+                """
+            }
+        }
+
+        then {
+            assertAll(
+                { assert process.success },
+                { assert path(process.out.assembly.get(0).get(1)).exists() },
+                { assert path(process.out.graph.get(0).get(1)).exists() },
+                { assert path("${process.out.assembly.get(0).get(1)}").text =~ /^>/ },
+                { assert path(process.out.haplotypes.get(0).get(1)).exists() },
+                { assert snapshot(process.out.versions).match() }
+            )
+        }
+    }
+
+    test("verkko_hifi_ont_trio") {
+        when {
+            params {
+                outdir = "$outputDir"
+            }
+            process {
+                """
+                input[0] = [ [ id:'test' ],
+                             file(params.test_data['homo_sapiens']['pacbio']['hifi'], checkIfExists: true)
+                           ]
+                input[1] = [ [ id:'test' ],
+                             file(params.test_data['homo_sapiens']['ont']['reads'], checkIfExists: true)
+                           ]
+                input[2] = [] // HiC reads 1
+                input[3] = [] // HiC reads 2
+                input[4] = [] // PoreC reads
+                input[5] = [ [ id:'test' ],
+                             file(params.test_data['homo_sapiens']['hapmer']['paternal'], checkIfExists: true)
+                           ]
+                input[6] = [ [ id:'test' ],
+                             file(params.test_data['homo_sapiens']['hapmer']['maternal'], checkIfExists: true)
+                           ]
+                input[7] = [] // Telomere motif
+                input[8] = [] // Reference genome
+                """
+            }
+        }
+
+        then {
+            assertAll(
+                { assert process.success },
+                { assert path(process.out.assembly.get(0).get(1)).exists() },
+                { assert path(process.out.graph.get(0).get(1)).exists() },
+                { assert path("${process.out.assembly.get(0).get(1)}").text =~ /^>/ },
+                { assert path(process.out.haplotypes.get(0).get(1)).exists() },
+                { assert path(process.out.colors.get(0).get(1)).exists() },
+                { assert path(process.out.paths.get(0).get(1)).exists() },
+                { assert snapshot(process.out.versions).match() }
+            )
+        }
+    }
+
+    test("verkko_stub") {
+        options "-stub"
+        when {
+            params {
+                outdir = "$outputDir"
+            }
+            process {
+                """
+                input[0] = [ [ id:'test' ],
+                             file(params.test_data['homo_sapiens']['pacbio']['hifi'], checkIfExists: true)
+                           ]
+                input[1] = [] // ONT reads
+                input[2] = [] // HiC reads 1
+                input[3] = [] // HiC reads 2
+                input[4] = [] // PoreC reads
+                input[5] = [] // Paternal hapmer
+                input[6] = [] // Maternal hapmer
+                input[7] = [] // Telomere motif
+                input[8] = [] // Reference genome
+                """
+            }
+        }
+
+        then {
+            assertAll(
+                { assert process.success },
+                { assert snapshot(process.out).match() }
+            )
+        }
+    }
+}

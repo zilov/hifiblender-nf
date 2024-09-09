@@ -1,0 +1,102 @@
+name: "verkko"
+description: Telomere-to-telomere assembly pipeline for accurate long reads and Oxford Nanopore ultra-long reads
+keywords:
+  - assembly
+  - genome
+  - de novo
+  - genome assembler
+  - long reads
+  - telomere-to-telomere
+  - hifi
+  - ont
+tools:
+  - "verkko":
+      description: "Hybrid genome assembly pipeline for telomere-to-telomere assembly of accurate long reads and Oxford Nanopore ultra-long reads"
+      homepage: "https://github.com/marbl/verkko"
+      documentation: "https://github.com/marbl/verkko/blob/main/README.md"
+      tool_dev_url: "https://github.com/marbl/verkko"
+      doi: "10.1038/s41587-023-01662-6"
+      licence: ["MIT"]
+input:
+  - meta:
+      type: map
+      description: |
+        Groovy Map containing sample information
+        e.g. [ id:'test' ]
+  - hifi_reads:
+      type: file
+      description: Input HiFi reads in FASTA/FASTQ format
+      pattern: "*.{fasta,fastq,fasta.gz,fastq.gz,fa,fq,fa.gz,fq.gz}"
+  - ont_reads:
+      type: file
+      description: Input Oxford Nanopore reads in FASTA/FASTQ format
+      pattern: "*.{fasta,fastq,fasta.gz,fastq.gz,fa,fq,fa.gz,fq.gz}"
+  - hic_reads_1:
+      type: file
+      description: Input Hi-C reads (read 1) in FASTQ format
+      pattern: "*.{fastq,fastq.gz,fq,fq.gz}"
+  - hic_reads_2:
+      type: file
+      description: Input Hi-C reads (read 2) in FASTQ format
+      pattern: "*.{fastq,fastq.gz,fq,fq.gz}"
+  - porec_reads:
+      type: file
+      description: Input Pore-C reads in FASTQ format
+      pattern: "*.{fastq,fastq.gz,fq,fq.gz}"
+  - pat_hapmer:
+      type: file
+      description: Paternal hapmer database
+      pattern: "*.meryl"
+  - mat_hapmer:
+      type: file
+      description: Maternal hapmer database
+      pattern: "*.meryl"
+  - telomere_motif:
+      type: string
+      description: Telomere motif for species other than vertebrates
+  - reference:
+      type: file
+      description: Reference genome for scaffolding guidance
+      pattern: "*.{fasta,fastq,fasta.gz,fastq.gz,fa,fq,fa.gz,fq.gz}"
+output:
+  - meta:
+      type: map
+      description: |
+        Groovy Map containing sample information
+        e.g. [ id:'test' ]
+  - versions:
+      type: file
+      description: File containing software versions
+      pattern: "versions.yml"
+  - assembly:
+      type: file
+      description: Assembled FASTA file
+      pattern: "*/assembly.fasta"
+  - graph:
+      type: file
+      description: Assembly graph in homopolymer-compressed space
+      pattern: "*/assembly.homopolymer-compressed.gfa"
+  - haplotypes:
+      type: file
+      description: Haplotype-resolved assemblies (if phasing information provided)
+      pattern: "*/assembly.haplotype*.fasta"
+  - colors:
+      type: file
+      description: Node coloring information from phasing
+      pattern: "*/assembly.colors.csv"
+  - paths:
+      type: file
+      description: Paths selected for phasing the assembly
+      pattern: "*/assembly.paths.tsv"
+  - contaminants:
+      type: file
+      description: Contaminant sequences removed from the assembly
+      pattern: "*/assembly.*.fasta"
+  - exemplars:
+      type: file
+      description: Circularized canonical contaminant sequences
+      pattern: "*/assembly.*.exemplar.fasta"
+authors:
+  - "@zilov"
+maintainers:
+  - "@zilov"
