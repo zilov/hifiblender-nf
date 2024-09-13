@@ -26,6 +26,11 @@ include { FLYE                  } from '../modules/nf-core/flye/main.nf'
 // include { MERFIN                } from '../modules/merfin/main'
 // include { SLIZER                } from '../modules/slizer/main'
 
+
+// features
+
+nextflow.preview.topic = true
+
 /*
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     RUN MAIN WORKFLOW
@@ -141,6 +146,9 @@ workflow HIFIBLENDER {
 
     }
 
+    // Process samples that need assembly
+    ch_to_assemble = ch_sample_map.filter { sample -> !sample.assembly }
+
 
     if ('hifiasm' in tools) {
         //
@@ -162,7 +170,7 @@ workflow HIFIBLENDER {
                 ]
             }
         
-        HIFIASM (
+        hifiasm_output_ch = HIFIASM (
             hifiasm_input_ch.map { it[0] },  // meta, reads
             hifiasm_input_ch.map { it[1] },  // paternal_kmer_dump
             hifiasm_input_ch.map { it[2] },  // maternal_kmer_dump
@@ -215,12 +223,12 @@ workflow HIFIBLENDER {
             ]
         }
 
-        FLYE (
+        flye_output_ch = FLYE (
             flye_input_ch.map { it[0..1] },  // meta, reads
             flye_input_ch.map { it[2] }      // mode
         )
 
-    }
+   }
 
 
 
@@ -228,25 +236,18 @@ workflow HIFIBLENDER {
     // MODULE: Run QUAST
     //
 
-    quast_input_ch = ch_sample_map
-        .map { sample ->
-            def meta = sample.sample
-            def consensus = sample.assembly ?: []  // Path to assembled genome
-            def reference = sample.reference ?: []  // Path to reference genome, if available
-            def gff = sample.gff ?: []  // Path to GFF file, if available
-            
-            [
-                [ meta, consensus ],
-                [ meta, reference ],
-                [ meta, gff ]
-            ]
-        }
+    quast_input_ch = channel.topic('assembly_fasta').view()
 
     QUAST (
-        quast_input_ch.map { it[0] },  // meta, consensus
-        quast_input_ch.map { it[1] },  // meta, reference (fasta)
-        quast_input_ch.map { it[2] }   // meta, gff
+        quast_input_ch,  // meta, consensus
+        Channel.empty(),  // meta, reference (fasta)
+        Channel.empty()   // meta, gff
     )
+
+    //
+    // MODULE: Run GFASTATS
+    //
+
 
     if ('busco' in tools) {
 

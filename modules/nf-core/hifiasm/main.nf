@@ -21,10 +21,14 @@ process HIFIASM {
     tuple val(meta), path("*.ovlp.reverse.bin"), emit: reverse_overlaps
     tuple val(meta), path("*.bp.p_ctg.gfa")    , emit: processed_contigs, optional: true
     tuple val(meta), path("*.p_utg.gfa")       , emit: processed_unitigs, optional: true
-    tuple val(meta), path("*.asm.p_ctg.gfa")   , emit: primary_contigs  , optional: true
+    tuple val(meta), path("*.asm.p_ctg.gfa")   , emit: primary_contigs  , optional: true, topic: assembly_gfa
+    tuple val(meta), path("*.asm.p_ctg.fa")    , emit: primary_contigs_fa  , optional: true, topic: assembly_fasta
     tuple val(meta), path("*.asm.a_ctg.gfa")   , emit: alternate_contigs, optional: true
+    tuple val(meta), path("*.asm.a_ctg.fa")    , emit: alternate_contigs_fa, optional: true
     tuple val(meta), path("*.hap1.p_ctg.gfa")  , emit: paternal_contigs , optional: true
+    tuple val(meta), path("*.hap1.p_ctg.fa")   , emit: paternal_contigs_fa , optional: true
     tuple val(meta), path("*.hap2.p_ctg.gfa")  , emit: maternal_contigs , optional: true
+    tuple val(meta), path("*.hap2.p_ctg.fa")   , emit: maternal_contigs_fa , optional: true
     tuple val(meta), path("*.log")             , emit: log
     path  "versions.yml"                       , emit: versions
 
@@ -51,6 +55,9 @@ process HIFIASM {
             $reads \\
             2> >( tee ${prefix}.stderr.log >&2 )
 
+        awk '/^S/{print ">"\$2;print \$3}' ${prefix}.hap1.p_ctg.gfa > ${prefix}.asm.hap1.p_ctg.fa
+        awk '/^S/{print ">"\$2;print \$3}' ${prefix}.hap2.a_ctg.gfa > ${prefix}.asm.hap2.a_ctg.fa
+
 
         cat <<-END_VERSIONS > versions.yml
         "${task.process}":
@@ -72,6 +79,9 @@ process HIFIASM {
             $reads \\
             2> >( tee ${prefix}.stderr.log >&2 )
 
+        awk '/^S/{print ">"\$2;print \$3}' ${prefix}.asm.p_ctg.gfa > ${prefix}.asm.p_ctg.fa
+        awk '/^S/{print ">"\$2;print \$3}' ${prefix}.asm.a_ctg.gfa > ${prefix}.asm.a_ctg.fa
+
 
         cat <<-END_VERSIONS > versions.yml
         "${task.process}":
@@ -86,6 +96,10 @@ process HIFIASM {
             -t $task.cpus \\
             $reads \\
             2> >( tee ${prefix}.stderr.log >&2 )
+        
+        awk '/^S/{print ">"\$2;print \$3}' ${prefix}.asm.p_ctg.gfa > ${prefix}.asm.p_ctg.fa
+        awk '/^S/{print ">"\$2;print \$3}' ${prefix}.asm.a_ctg.gfa > ${prefix}.asm.a_ctg.fa
+
 
         cat <<-END_VERSIONS > versions.yml
         "${task.process}":
@@ -104,9 +118,14 @@ process HIFIASM {
         touch ${prefix}.asm.bp.p_ctg.gfa
         touch ${prefix}.asm.p_utg.gfa
         touch ${prefix}.asm.p_ctg.gfa
+        touch ${prefix}.asm.p_ctg.fa
         touch ${prefix}.asm.a_ctg.gfa
+        touch ${prefix}.asm.a_ctg.fa
         touch ${prefix}.asm.hap1.p_ctg.gfa
+        touch ${prefix}.asm.hap1.a_ctg.fa
         touch ${prefix}.asm.hap2.p_ctg.gfa
+        touch ${prefix}.asm.hap1.a_ctg.fa
+
         touch ${prefix}.stderr.log
 
         cat <<-END_VERSIONS > versions.yml
