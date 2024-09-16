@@ -52,6 +52,22 @@
                     "description": "Comma-separated list of tools to run",
                     "help_text": "Valid tools are: qv, hifiasm, flye, nextdenovo, verkko, busco, compleasm, sniffles, slizer",
                     "fa_icon": "fas fa-toolbox"
+                },
+                "flye_args": {
+                    "type": "string",
+                    "description": "String of additional Flye args, e.g. --genome-size"
+                },
+                "hifiasm_args": {
+                    "type": "string",
+                    "description": "String of additional hifiasm args"
+                },
+                "verkko_args": {
+                    "type": "string",
+                    "description": "String of additional verkko args"
+                },
+                "nextdenovo_args": {
+                    "type": "string",
+                    "description": "String of additional nextdenovo args"
                 }
             }
         },

@@ -1,6 +1,6 @@
 process FLYE {
     tag "$meta.id"
-    label 'process_high'
+    label 'process_assembly'
 
     conda "${moduleDir}/environment.yml"
     container "${ workflow.containerEngine == 'singularity' && !task.ext.singularity_pull_docker_container ?
@@ -24,7 +24,7 @@ process FLYE {
     task.ext.when == null || task.ext.when
 
     script:
-    def args = task.ext.args ?: ''
+    def args = task.ext.args ?: params.flye_args
     def outdir = "${meta.id}"
     def prefix = task.ext.prefix ?: "${meta.id}"
 
@@ -37,6 +37,7 @@ process FLYE {
         --out-dir $outdir \\
         --threads $task.cpus \\
         $args
+
 
     gzip -c $outdir/assembly.fasta > $outdir/${prefix}.assembly.fasta.gz
     gzip -c $outdir/assembly_graph.gfa > $outdir/${prefix}.assembly_graph.gfa.gz
