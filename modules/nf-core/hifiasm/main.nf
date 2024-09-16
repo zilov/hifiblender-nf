@@ -36,7 +36,7 @@ process HIFIASM {
     task.ext.when == null || task.ext.when
 
     script:
-    def args = task.ext.args ?: ''
+    def args = task.ext.args ?: params.hifiasm_args
     def prefix = task.ext.prefix ?: "${meta.id}"
     if ((paternal_kmer_dump) && (maternal_kmer_dump) && (hic_read1) && (hic_read2)) {
         error "Hifiasm Trio-binning and Hi-C integrated should not be used at the same time"
