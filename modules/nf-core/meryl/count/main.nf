@@ -12,8 +12,8 @@ process MERYL_COUNT {
     val kvalue
 
     output:
-    tuple val(meta), path("*.meryl")    , emit: meryl_db
-    path "versions.yml"                 , emit: versions
+    tuple val(meta), path("${meta.id}/*.meryl"), emit: meryl_db
+    path "versions.yml"                        , emit: versions
 
     when:
     task.ext.when == null || task.ext.when
@@ -21,15 +21,17 @@ process MERYL_COUNT {
     script:
     def args = task.ext.args ?: ''
     def prefix = task.ext.prefix ?: "${meta.id}"
+    def outdir = "${meta.id}"
     """
-    for READ in $reads; do
+    mkdir -p ${outdir}
+    for READ in ${reads}; do
         meryl count \\
-            k=$kvalue \\
-            threads=$task.cpus \\
+            k=${kvalue} \\
+            threads=${task.cpus} \\
             memory=${task.memory.toGiga()} \\
-            $args \\
-            $reads \\
-            output read.\${READ%.f*}.meryl
+            ${args} \\
+            \$READ \\
+            output ${outdir}/read.\${READ%.f*}.meryl
     done
 
     cat <<-END_VERSIONS > versions.yml
@@ -41,9 +43,11 @@ process MERYL_COUNT {
     stub:
     def args = task.ext.args ?: ''
     def prefix = task.ext.prefix ?: "${meta.id}"
+    def outdir = "${meta.id}"
     """
-    for READ in $reads; do
-        touch read.\${READ%.f*}.meryl
+    mkdir -p ${outdir}
+    for READ in ${reads}; do
+        touch ${outdir}/read.\${READ%.f*}.meryl
     done
 
     cat <<-END_VERSIONS > versions.yml

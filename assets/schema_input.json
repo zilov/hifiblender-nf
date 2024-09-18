@@ -13,12 +13,6 @@
                 "errorMessage": "Sample name must be provided and cannot contain spaces",
                 "meta": ["id"]
             },
-            "assembler": {
-                "type": "string",
-                "default": "hifiasm",
-                "enum": ["hifiasm", "verkko", "flye", "nextdenovo", "all"],
-                "errorMessage": "Choose assembler from the list ['hifiasm', 'verkko', 'flye', 'nextdenovo', 'all']"
-            },
             "hifi_reads": {
                 "type": "string",
                 "format": "file-path",
@@ -91,6 +85,6 @@
                 "default": 23
             }
         },
-        "required": ["sample", "assembler"]
+        "required": ["sample"]
     }
 }

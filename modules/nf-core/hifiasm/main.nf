@@ -15,22 +15,22 @@ process HIFIASM {
     path  hic_read2
 
     output:
-    tuple val(meta), path("*.r_utg.gfa")       , emit: raw_unitigs
-    tuple val(meta), path("*.ec.bin")          , emit: corrected_reads
-    tuple val(meta), path("*.ovlp.source.bin") , emit: source_overlaps
-    tuple val(meta), path("*.ovlp.reverse.bin"), emit: reverse_overlaps
-    tuple val(meta), path("*.bp.p_ctg.gfa")    , emit: processed_contigs, optional: true
-    tuple val(meta), path("*.p_utg.gfa")       , emit: processed_unitigs, optional: true
-    tuple val(meta), path("*.asm.bp.p_ctg.gfa")   , emit: primary_contigs  , optional: true, topic: assembly_gfa
-    tuple val(meta), path("*.asm.bp.p_ctg.fa")    , emit: primary_contigs_fa  , optional: true, topic: assembly_fasta
-    tuple val(meta), path("*.asm.bp.a_ctg.gfa")   , emit: alternate_contigs, optional: true
-    tuple val(meta), path("*.asm.bp.a_ctg.fa")    , emit: alternate_contigs_fa, optional: true
-    tuple val(meta), path("*.asm.bp.hap1.p_ctg.gfa")  , emit: paternal_contigs , optional: true
-    tuple val(meta), path("*.asm.bp.hap1.p_ctg.fa")   , emit: paternal_contigs_fa , optional: true
-    tuple val(meta), path("*.asm.bp.hap2.p_ctg.gfa")  , emit: maternal_contigs , optional: true
-    tuple val(meta), path("*.asm.bp.hap2.p_ctg.fa")   , emit: maternal_contigs_fa , optional: true
-    tuple val(meta), path("*.log")             , emit: log
-    path  "versions.yml"                       , emit: versions
+    tuple val(meta), path("${meta.id}/*.r_utg.gfa")       , emit: raw_unitigs
+    tuple val(meta), path("${meta.id}/*.ec.bin")          , emit: corrected_reads
+    tuple val(meta), path("${meta.id}/*.ovlp.source.bin") , emit: source_overlaps
+    tuple val(meta), path("${meta.id}/*.ovlp.reverse.bin"), emit: reverse_overlaps
+    tuple val(meta), path("${meta.id}/*.bp.p_ctg.gfa")    , emit: processed_contigs, optional: true
+    tuple val(meta), path("${meta.id}/*.p_utg.gfa")       , emit: processed_unitigs, optional: true
+    tuple val(meta), path("${meta.id}/*.asm.bp.p_ctg.gfa")   , emit: primary_contigs  , optional: true, topic: assembly_gfa
+    tuple val(meta), path("${meta.id}/*.asm.bp.p_ctg.fa")    , emit: primary_contigs_fa  , optional: true, topic: assembly_fasta
+    tuple val(meta), path("${meta.id}/*.asm.bp.a_ctg.gfa")   , emit: alternate_contigs, optional: true
+    tuple val(meta), path("${meta.id}/*.asm.bp.a_ctg.fa")    , emit: alternate_contigs_fa, optional: true
+    tuple val(meta), path("${meta.id}/*.asm.bp.hap1.p_ctg.gfa")  , emit: paternal_contigs , optional: true
+    tuple val(meta), path("${meta.id}/*.asm.bp.hap1.p_ctg.fa")   , emit: paternal_contigs_fa , optional: true
+    tuple val(meta), path("${meta.id}/*.asm.bp.hap2.p_ctg.gfa")  , emit: maternal_contigs , optional: true
+    tuple val(meta), path("${meta.id}/*.asm.bp.hap2.p_ctg.fa")   , emit: maternal_contigs_fa , optional: true
+    tuple val(meta), path("${meta.id}/*.log")             , emit: log
+    path  "versions.yml"                                  , emit: versions
 
     when:
     task.ext.when == null || task.ext.when
@@ -38,6 +38,7 @@ process HIFIASM {
     script:
     def args = task.ext.args ?: params.hifiasm_args
     def prefix = task.ext.prefix ?: "${meta.id}"
+    def outdir = "${meta.id}"
     if ((paternal_kmer_dump) && (maternal_kmer_dump) && (hic_read1) && (hic_read2)) {
         error "Hifiasm Trio-binning and Hi-C integrated should not be used at the same time"
     } else if ((paternal_kmer_dump) && !(maternal_kmer_dump)) {
@@ -46,21 +47,22 @@ process HIFIASM {
         error "Hifiasm Trio-binning requires paternal data"
     } else if ((paternal_kmer_dump) && (maternal_kmer_dump)) {
         """
+        mkdir -p $outdir
         hifiasm \\
             $args \\
-            -o ${prefix}.asm \\
+            -o ${outdir}/${prefix}.asm \\
             -t $task.cpus \\
             -1 $paternal_kmer_dump \\
             -2 $maternal_kmer_dump \\
             $reads \\
-            2> >( tee ${prefix}.stderr.log >&2 )
+            2> >( tee ${outdir}/${prefix}.stderr.log >&2 )
 
-        if [ -f "${prefix}.asm.bp.hap1.p_ctg.gfa" ]; then
-            awk '/^S/{print ">"\$2;print \$3}' ${prefix}.asm.bp.hap1.p_ctg.gfa > ${prefix}.asm.bp.hap1.p_ctg.fa
+        if [ -f "${outdir}/${prefix}.asm.bp.hap1.p_ctg.gfa" ]; then
+            awk '/^S/{print ">"\$2;print \$3}' ${outdir}/${prefix}.asm.bp.hap1.p_ctg.gfa > ${outdir}/${prefix}.asm.bp.hap1.p_ctg.fa
         fi
         
-        if [ -f "${prefix}.asm.bp.hap1.p_ctg.gfa" ]; then
-            awk '/^S/{print ">"\$2;print \$3}' ${prefix}.asm.bp.hap2.a_ctg.gfa > ${prefix}.asm.bp.hap2.a_ctg.fa
+        if [ -f "${outdir}/${prefix}.asm.bp.hap2.p_ctg.gfa" ]; then
+            awk '/^S/{print ">"\$2;print \$3}' ${outdir}/${prefix}.asm.bp.hap2.p_ctg.gfa > ${outdir}/${prefix}.asm.bp.hap2.p_ctg.fa
         fi
 
         cat <<-END_VERSIONS > versions.yml
@@ -74,21 +76,22 @@ process HIFIASM {
         error "Hifiasm Hi-C integrated requires paired-end data (only R2 specified here)"
     } else if ((hic_read1) && (hic_read2)) {
         """
+        mkdir -p $outdir
         hifiasm \\
             $args \\
-            -o ${prefix}.asm \\
+            -o ${outdir}/${prefix}.asm \\
             -t $task.cpus \\
             --h1 $hic_read1 \\
             --h2 $hic_read2 \\
             $reads \\
-            2> >( tee ${prefix}.stderr.log >&2 )
+            2> >( tee ${outdir}/${prefix}.stderr.log >&2 )
 
-        if [ -f "${prefix}.asm.bp.p_ctg.gfa" ]; then
-            awk '/^S/{print ">"\$2;print \$3}' "${prefix}.asm.bp.p_ctg.gfa" > "${prefix}.asm.bp.p_ctg.fa"
+        if [ -f "${outdir}/${prefix}.asm.bp.p_ctg.gfa" ]; then
+            awk '/^S/{print ">"\$2;print \$3}' "${outdir}/${prefix}.asm.bp.p_ctg.gfa" > "${outdir}/${prefix}.asm.bp.p_ctg.fa"
         fi
 
-        if [ -f "${prefix}.asm.bp.a_ctg.gfa" ]; then
-            awk '/^S/{print ">"\$2;print \$3}' "${prefix}.asm.bp.a_ctg.gfa" > "${prefix}.asm.bp.a_ctg.fa"
+        if [ -f "${outdir}/${prefix}.asm.bp.a_ctg.gfa" ]; then
+            awk '/^S/{print ">"\$2;print \$3}' "${outdir}/${prefix}.asm.bp.a_ctg.gfa" > "${outdir}/${prefix}.asm.bp.a_ctg.fa"
         fi
 
         cat <<-END_VERSIONS > versions.yml
@@ -98,19 +101,20 @@ process HIFIASM {
         """
     } else { // Phasing with Hi-C data is not supported yet
         """
+        mkdir -p $outdir
         hifiasm \\
             $args \\
-            -o ${prefix}.asm \\
+            -o ${outdir}/${prefix}.asm \\
             -t $task.cpus \\
             $reads \\
-            2> >( tee ${prefix}.stderr.log >&2 )
+            2> >( tee ${outdir}/${prefix}.stderr.log >&2 )
         
-        if [ -f "${prefix}.asm.bp.p_ctg.gfa" ]; then
-            awk '/^S/{print ">"\$2;print \$3}' "${prefix}.asm.bp.p_ctg.gfa" > "${prefix}.asm.bp.p_ctg.fa"
+        if [ -f "${outdir}/${prefix}.asm.bp.p_ctg.gfa" ]; then
+            awk '/^S/{print ">"\$2;print \$3}' "${outdir}/${prefix}.asm.bp.p_ctg.gfa" > "${outdir}/${prefix}.asm.bp.p_ctg.fa"
         fi
 
-        if [ -f "${prefix}.asm.bp.a_ctg.gfa" ]; then
-            awk '/^S/{print ">"\$2;print \$3}' "${prefix}.asm.bp.a_ctg.gfa" > "${prefix}.asm.bp.a_ctg.fa"
+        if [ -f "${outdir}/${prefix}.asm.bp.a_ctg.gfa" ]; then
+            awk '/^S/{print ">"\$2;print \$3}' "${outdir}/${prefix}.asm.bp.a_ctg.gfa" > "${outdir}/${prefix}.asm.bp.a_ctg.fa"
         fi
 
         cat <<-END_VERSIONS > versions.yml
@@ -119,31 +123,33 @@ process HIFIASM {
         END_VERSIONS
         """
     }
-        stub:
-        def args = task.ext.args ?: ''
-        def prefix = task.ext.prefix ?: "${meta.id}"
-        """
-        touch ${prefix}.asm.r_utg.gfa
-        touch ${prefix}.asm.ec.bin
-        touch ${prefix}.asm.ovlp.source.bin
-        touch ${prefix}.asm.ovlp.reverse.bin
-        touch ${prefix}.asm.bp.p_ctg.gfa
-        touch ${prefix}.asm.bp.p_utg.gfa
-        touch ${prefix}.asm.bp.p_ctg.gfa
-        touch ${prefix}.asm.bp.p_ctg.fa
-        touch ${prefix}.asm.bp.a_ctg.gfa
-        touch ${prefix}.asm.bp.a_ctg.fa
-        touch ${prefix}.asm.bp.hap1.p_ctg.gfa
-        touch ${prefix}.asm.bp.hap1.a_ctg.fa
-        touch ${prefix}.asm.bp.hap2.p_ctg.gfa
-        touch ${prefix}.asm.bp.hap1.a_ctg.fa
 
-        touch ${prefix}.stderr.log
+    stub:
+    def args = task.ext.args ?: ''
+    def prefix = task.ext.prefix ?: "${meta.id}"
+    def outdir = "${meta.id}"
+    """
+    mkdir -p $outdir
+    touch ${outdir}/${prefix}.asm.r_utg.gfa
+    touch ${outdir}/${prefix}.asm.ec.bin
+    touch ${outdir}/${prefix}.asm.ovlp.source.bin
+    touch ${outdir}/${prefix}.asm.ovlp.reverse.bin
+    touch ${outdir}/${prefix}.asm.bp.p_ctg.gfa
+    touch ${outdir}/${prefix}.asm.bp.p_utg.gfa
+    touch ${outdir}/${prefix}.asm.bp.p_ctg.gfa
+    touch ${outdir}/${prefix}.asm.bp.p_ctg.fa
+    touch ${outdir}/${prefix}.asm.bp.a_ctg.gfa
+    touch ${outdir}/${prefix}.asm.bp.a_ctg.fa
+    touch ${outdir}/${prefix}.asm.bp.hap1.p_ctg.gfa
+    touch ${outdir}/${prefix}.asm.bp.hap1.p_ctg.fa
+    touch ${outdir}/${prefix}.asm.bp.hap2.p_ctg.gfa
+    touch ${outdir}/${prefix}.asm.bp.hap2.p_ctg.fa
 
-        cat <<-END_VERSIONS > versions.yml
-        "${task.process}":
-            hifiasm: \$(hifiasm --version 2>&1)
-        END_VERSIONS
-        """
+    touch ${outdir}/${prefix}.stderr.log
 
+    cat <<-END_VERSIONS > versions.yml
+    "${task.process}":
+        hifiasm: \$(hifiasm --version 2>&1)
+    END_VERSIONS
+    """
 }
