@@ -1,2 +1,2 @@
-sample,assembler,hifi_reads,ont_reads,illumina_reads_1,illumina_reads_2,hic_reads_1,hic_reads_2,busco_lineage,busco_lineage_local,meryl_db_local,assembly,k
-hifiblender_nf_test,flye,/path/to/hifi_reads/reads.fastq.gz,/path/to/ont_reads/reads.fastq.gz,/path/to/illumina_reads/reads_1.fastq.gz,/path/to/illumina_reads/reads_2.fastq.gz,/path/to/hic_reads/reads_1.fastq.gz,/path/to/hic_reads/reads_2.fastq.gz,lineage_odb10,/path/to/lineage_odb10,/path/to/meryl_db.meryl,/path/to/assembly.fasta,23
+sample,hifi_reads,ont_reads,illumina_reads_1,illumina_reads_2,hic_reads_1,hic_reads_2,busco_lineage,busco_lineage_local,meryl_db_local,assembly,k
+hifiblender_nf_test,/path/to/hifi_reads/reads.fastq.gz,/path/to/ont_reads/reads.fastq.gz,/path/to/illumina_reads/reads_1.fastq.gz,/path/to/illumina_reads/reads_2.fastq.gz,/path/to/hic_reads/reads_1.fastq.gz,/path/to/hic_reads/reads_2.fastq.gz,lineage_odb10,/path/to/lineage_odb10,/path/to/meryl_db.meryl,/path/to/assembly.fasta,23
