@@ -4,7 +4,7 @@ workflow PARSE_INPUT {
 
     main:
         ch_sample_maps = ch_samplesheet
-            .map { sample, hifi, ont, illumina_1, illumina_2, hic_1, hic_2, busco_lineage, busco_lineage_local, meryl_db_local, assembly, k ->
+            .map { sample, hifi, ont, illumina_1, illumina_2, hic_1, hic_2, busco_lineage, busco_lineage_local, meryl_db_local, assembly_fasta, assembly_gfa, k ->
                 def sampleMap = [
                     sample: sample,
                     hifi: hifi ? file(hifi) : null,
@@ -16,7 +16,8 @@ workflow PARSE_INPUT {
                     busco_lineage: busco_lineage,
                     busco_lineage_local: busco_lineage_local ? file(busco_lineage_local) : null,
                     meryl_db_local: meryl_db_local ? file(meryl_db_local) : null,
-                    assembly: assembly ? file(assembly) : null,
+                    assembly_fasta: assembly_fasta ? file(assembly_fasta) : null,
+                    assembly_gfa: assembly_gfa ? file(assembly_gfa) : null,
                     k: k
                 ]
                 return sampleMap
@@ -27,7 +28,7 @@ workflow PARSE_INPUT {
                 def reads = [sampleMap.hifi, sampleMap.ont, sampleMap.illumina_1, sampleMap.illumina_2] - null
                 return [ sampleMap.sample, reads.flatten() ]
             }
-            .filter { meta, reads -> !reads.isEmpty() }.view()
+            .filter { meta, reads -> !reads.isEmpty() }
 
         // Combine all FastQC channels
         ch_fastqc_input = ch_sample_maps
@@ -46,7 +47,7 @@ workflow PARSE_INPUT {
                     reads << [sampleMap.sample, [file(sampleMap.hifi)] ]
                 }
                 return reads
-            }.view()
+            }
 
     emit:
         sampleMap = ch_sample_maps

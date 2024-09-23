@@ -2,6 +2,8 @@ process FLYE {
     tag "$meta.id"
     label 'process_assembly'
 
+    maxForks = 1
+
     conda "${moduleDir}/environment.yml"
     container "${ workflow.containerEngine == 'singularity' && !task.ext.singularity_pull_docker_container ?
         'https://depot.galaxyproject.org/singularity/flye:2.9--py39h6935b12_1' :

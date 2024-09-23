@@ -71,11 +71,17 @@
                 "pattern": "^\\S+\\.meryl",
                 "errorMessage": "meryl_db_local path should end with .meryl"
             },
-            "assembly": {
+            "assembly_fasta": {
                 "type": "string",
                 "format": "file-path",
                 "pattern": "^\\S+\\.fa(sta)(\\.gz)",
                 "errorMessage": "FastA file of assembly could be gzipped and should end with '.fa' or '.fasta'"
+            },
+            "assembly_gfa": {
+                "type": "string",
+                "format": "file-path",
+                "pattern": "^\\S+\\.gfa(\\.gz)",
+                "errorMessage": "GFA file of assembly could be gzipped and should end with '.gfa'"
             },
             "k": {
                 "type": "number",

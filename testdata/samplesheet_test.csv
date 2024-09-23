@@ -1,8 +1,8 @@
-sample,hifi_reads,ont_reads,illumina_reads_1,illumina_reads_2,hic_reads_1,hic_reads_2,busco_lineage,busco_lineage_local,meryl_db_local,assembly,k
-sample_1_hifi_only,./sample_1_hifi_reads.fasta.gz,,,,,,,,,,23
-sample_2_ont_only,,"./sample_2_nanopore.fasta.gz ",,,,,,,,,23
-sample_3_hifi_illumina,./sample_3_hifi_reads.fasta.gz,,./sample_3_illumina_1.fastq.gz,./sample_3_illumina_2.fastq.gz,,,,,,,23
-sample_4_hifi_hic,./sample_4_hifi_reads.fasta.gz,,,,./sample_4_hic_1.fastq.gz,./sample_4_hic_2.fastq.gz,,,,,23
-sample_5_hifi_ont,./sample_5_hifi_reads.fasta.gz,./sample_5_nanopore.fasta.gz,,,,,,,,,
-sample_6_illumina_only,,,./sample_6_illumina_1.fastq.gz,./sample_6_illumina_2.fastq.gz,,,,,,,
-sample_7_assembly_only,,,,,,,,,,./sample_7_assembly.fasta.gz,
+sample,hifi_reads,ont_reads,illumina_reads_1,illumina_reads_2,hic_reads_1,hic_reads_2,busco_lineage,busco_lineage_local,meryl_db_local,assembly_fasta,assembly_gfa,k
+sample_1_hifi_only,./sample_1_hifi_reads.fasta.gz,,,,,,,,,,,23
+sample_2_ont_only,,"./sample_2_nanopore.fasta.gz ",,,,,,,,,,23
+sample_3_hifi_illumina,./sample_3_hifi_reads.fasta.gz,,./sample_3_illumina_1.fastq.gz,./sample_3_illumina_2.fastq.gz,,,,,,,,23
+sample_4_hifi_hic,./sample_4_hifi_reads.fasta.gz,,,,./sample_4_hic_1.fastq.gz,./sample_4_hic_2.fastq.gz,,,,,,23
+sample_5_hifi_ont,./sample_5_hifi_reads.fasta.gz,./sample_5_nanopore.fasta.gz,,,,,,,,,,
+sample_6_illumina_only,,,./sample_6_illumina_1.fastq.gz,./sample_6_illumina_2.fastq.gz,,,,,,,,
+sample_7_assembly_only,,,,,,,,,,./sample_7_assembly.fasta.gz,./sample_7_assembly.gfa.gz,

@@ -13,14 +13,13 @@ include { MERYL_COUNT            } from '../modules/nf-core/meryl/count/main.nf'
 include { MERYL_HISTOGRAM        } from "../modules/nf-core/meryl/histogram/main.nf"
 include { MERYL_UNIONSUM         } from "../modules/nf-core/meryl/unionsum/main.nf"
 include { GENOMESCOPE2           } from "../modules/nf-core/genomescope2/main.nf"
+include { GFASTATS           } from "../modules/nf-core/gfastats/main.nf"
 include { PARSE_INPUT            } from "../subworkflows/local/parse_input.nf"
-// include { GENOMESCOPE2          } from '../modules/genomescope2/main'
 // include { VERKKO                } from '../modules/verkko/main'
 include { HIFIASM               } from '../modules/nf-core/hifiasm/main.nf'
 include { FLYE                  } from '../modules/nf-core/flye/main.nf'
 // include { NEXTDENOVO            } from '../modules/nextdenovo/main'
  include { QUAST                 } from '../modules/nf-core/quast/main.nf'
-// include { GFASTAT               } from '../modules/gfastat/main'
 // include { BUSCO                 } from '../modules/busco/main'
 // include { COMPLEASM             } from '../modules/compleasm/main'
 // include { MERFIN                } from '../modules/merfin/main'
@@ -104,20 +103,20 @@ workflow HIFIBLENDER {
             ch_sample_reads, params.k
         )
 
-        ch_meryl_db = MERYL_COUNT.out.meryl_db.view()
+        ch_meryl_db = MERYL_COUNT.out.meryl_db
 
         // sum pair end meryl databases
         MERYL_UNIONSUM(
             ch_meryl_db, params.k
         )
         
-        ch_meryl_sample_db = MERYL_UNIONSUM.out.meryl_db.view((sample, dbs) -> "$sample dbs $dbs")
+        ch_meryl_sample_db = MERYL_UNIONSUM.out.meryl_db
 
         MERYL_HISTOGRAM (
             ch_meryl_sample_db, params.k
         )
 
-        ch_meryl_sample_histogram = MERYL_HISTOGRAM.out.hist.view((sample, hist) -> "$sample histogram $hist")
+        ch_meryl_sample_histogram = MERYL_HISTOGRAM.out.hist
 
         //
         // MODULE: Run genomescope2
@@ -147,7 +146,20 @@ workflow HIFIBLENDER {
     }
 
     // Process samples that need assembly
-    ch_to_assemble = ch_sample_map.filter { sample -> !sample.assembly }
+    
+    def assembler_channels_fa = []
+    def assembler_channels_gfa = []
+
+    ch_to_assemble = ch_sample_map.filter { sample -> !sample.assembly_fasta and !sample.assembly_gfa }
+    
+    input_assembly_ch_fa = ch_sample_map.filter {sample -> sample.assembly_fasta}
+        .map {sample -> [[id: sample.sample.id, assembler: "user_provided"], sample.assembly_fasta]}
+    
+    input_assembly_ch_gfa = ch_sample_map.filter {sample -> sample.assembly_gfa}
+        .map {sample -> [[id: sample.sample.id, assembler: "user_provided"], sample.assembly_gfa]}
+
+    assembler_channels_fa << input_assembly_ch_fa
+    assembler_channels_gfa << input_assembly_ch_gfa
 
 
     if ('hifiasm' in tools) {
@@ -157,7 +169,7 @@ workflow HIFIBLENDER {
         // outputs assembly in several formats
         //
 
-        hifiasm_input_ch = ch_sample_map
+        hifiasm_input_ch = ch_to_assemble
             .filter { sample -> sample.hifi || sample.ont }
             .map { sample ->
                 def reads = sample.hifi ?: sample.ont
@@ -177,6 +189,27 @@ workflow HIFIBLENDER {
             hifiasm_input_ch.map { it[3] },  // hic_read1
             hifiasm_input_ch.map { it[4] }   // hic_read2
         )
+
+        hifiasm_assembly_fasta = hifiasm_output_ch.primary_contigs_fa
+            .map { meta, fasta -> 
+                def newMeta = meta.clone()
+                newMeta.id = "${meta.id}_hifiasm"
+                newMeta.assembler = 'hifiasm'
+                [ newMeta, fasta ]
+            }
+        
+        assembler_channels_fa << hifiasm_assembly_fasta
+
+        hifiasm_assembly_gfa = hifiasm_output_ch.primary_contigs
+            .map { meta, gfa -> 
+                def newMeta = meta.clone()
+                newMeta.id = "${meta.id}_hifiasm"
+                newMeta.assembler = 'hifiasm'
+                [ newMeta, gfa ]
+            }
+
+        assembler_channels_gfa << hifiasm_assembly_gfa
+
     }
 
     if ('verkko' in tools) {
@@ -191,6 +224,8 @@ workflow HIFIBLENDER {
         //     ch_samplesheet
         // )
 
+        assembler_channels_fa << verkko_assembly_fasta
+        assembler_channels_gfa << verkko_assembly_gfa
     }
     
     if ('nextdenovo' in tools) {
@@ -203,6 +238,8 @@ workflow HIFIBLENDER {
         //     ch_samplesheet
         // )
 
+        assembler_channels_fa << nextdenovo_assembly_fasta
+        assembler_channels_gfa << nextdenovo_assembly_gfa
     }
 
     if ('flye' in tools) {
@@ -211,7 +248,7 @@ workflow HIFIBLENDER {
         // MODULE: Run flye
         //
 
-        flye_input_ch = ch_sample_map
+        flye_input_ch = ch_to_assemble
         .filter { sample -> (sample.hifi || sample.ont) }
         .map { sample ->
             def reads = sample.hifi ?: sample.ont
@@ -228,26 +265,57 @@ workflow HIFIBLENDER {
             flye_input_ch.map { it[2] }      // mode
         )
 
+        flye_assembly_fasta = flye_output_ch.fasta
+            .map { meta, fasta -> 
+                def newMeta = meta.clone()
+                newMeta.id = "${meta.id}_flye"
+                newMeta.assembler = 'flye'
+                [ newMeta, fasta ]
+            }
+
+        assembler_channels_fa << flye_assembly_fasta
+
+        flye_assembly_gfa = flye_output_ch.gfa
+            .map { meta, gfa -> 
+                def newMeta = meta.clone()
+                newMeta.id = "${meta.id}_flye"
+                newMeta.assembler = 'flye'
+                [ newMeta, gfa ]
+            }
+        
+        assembler_channels_gfa << flye_assembly_gfa
    }
 
 
+    // Combine fasta assembly channels
+    combined_fa_channel = Channel.empty()
+    assembler_channels_fa.each { channel ->
+        combined_fa_channel = combined_fa_channel.mix(channel)
+    }
+
+    // Combine gfa assembly channels
+    combined_gfa_channel = Channel.empty()
+    assembler_channels_gfa.each { channel ->
+        combined_gfa_channel = combined_gfa_channel.mix(channel)
+    }
+    
 
     //
     // MODULE: Run QUAST
     //
 
-    quast_input_ch = channel.topic('assembly_fasta').view()
-
-    QUAST (
-        quast_input_ch,  // meta, consensus
-        Channel.empty(),  // meta, reference (fasta)
-        Channel.empty()   // meta, gff
+    quast_out_ch = QUAST (
+        combined_fa_channel,  // meta, consensus
+        [[:], []],  // meta2, reference (fasta)
+        [[:], []]   // meta3, gff
     )
+
 
     //
     // MODULE: Run GFASTATS
     //
 
+    gfastats_out_ch = GFASTATS(combined_gfa_channel, 'gfa', '', '', [], [], [], [])
 
     if ('busco' in tools) {
 
