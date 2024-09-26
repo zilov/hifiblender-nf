@@ -13,11 +13,11 @@ include { MERYL_COUNT            } from '../modules/nf-core/meryl/count/main.nf'
 include { MERYL_HISTOGRAM        } from "../modules/nf-core/meryl/histogram/main.nf"
 include { MERYL_UNIONSUM         } from "../modules/nf-core/meryl/unionsum/main.nf"
 include { GENOMESCOPE2           } from "../modules/nf-core/genomescope2/main.nf"
-include { GFASTATS           } from "../modules/nf-core/gfastats/main.nf"
+include { GFASTATS               } from "../modules/nf-core/gfastats/main.nf"
 include { PARSE_INPUT            } from "../subworkflows/local/parse_input.nf"
-// include { VERKKO                } from '../modules/verkko/main'
-include { HIFIASM               } from '../modules/nf-core/hifiasm/main.nf'
-include { FLYE                  } from '../modules/nf-core/flye/main.nf'
+include { VERKKO                 } from '../modules/local/verkko/main'
+include { HIFIASM                } from '../modules/nf-core/hifiasm/main.nf'
+include { FLYE                   } from '../modules/nf-core/flye/main.nf'
 // include { NEXTDENOVO            } from '../modules/nextdenovo/main'
  include { QUAST                 } from '../modules/nf-core/quast/main.nf'
 // include { BUSCO                 } from '../modules/busco/main'
@@ -220,12 +220,56 @@ workflow HIFIBLENDER {
         // outputs assembly in several formats
         //
 
-        // VERKKO (
-        //     ch_samplesheet
-        // )
+        verkko_input_ch = ch_to_assemble
+        .filter { sample -> (sample.hifi) }
+        .map { sample ->
+            [       
+                    sample.sample,
+                    sample.hifi ? file(sample.hifi) : [], // hifi
+                    sample.ont ? file(sample.ont) : [], //ont
+                    sample.hic_1 ? file(sample.hic_1) : [], // hic_1
+                    sample.hic_2 ? file(sample.hic_2) : [], // hic_2
+                    [], // porec
+                    sample.parental_kmers ? file(sample.parental_kmers) : [], // paternal hapmers
+                    sample.maternal_kmers ? file(sample.maternal_kmers) : [], // maternal hapmers
+                    [],
+                    []
+            ]
+        }
+
+        verkko_output_ch = VERKKO(
+            verkko_input_ch.map { it[0] },  // meta
+            verkko_input_ch.map { it[1] },  // hifi
+            verkko_input_ch.map { it[2] },  // ont
+            verkko_input_ch.map { it[3] },  // hic_1
+            verkko_input_ch.map { it[4] },  // hic_2
+            verkko_input_ch.map { it[5] },  // porec
+            verkko_input_ch.map { it[6] },  // paternal hapmers
+            verkko_input_ch.map { it[7] },  // maternal hapmers
+            verkko_input_ch.map { it[8] },  // telomere_motif
+            verkko_input_ch.map { it[9] },  // reference
+        )
+
+        verkko_assembly_fasta = verkko_output_ch.assembly
+            .map { meta, fasta -> 
+                def newMeta = meta.clone()
+                newMeta.id = "${meta.id}_verkko"
+                newMeta.assembler = 'verkko'
+                [ newMeta, fasta ]
+            }
 
         assembler_channels_fa << verkko_assembly_fasta
+
+        verkko_assembly_gfa = verkko_output_ch.graph
+            .map { meta, gfa -> 
+                def newMeta = meta.clone()
+                newMeta.id = "${meta.id}_verkko"
+                newMeta.assembler = 'verkko'
+                [ newMeta, gfa ]
+            }
+        
         assembler_channels_gfa << verkko_assembly_gfa
+
     }
     
     if ('nextdenovo' in tools) {

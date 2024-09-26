@@ -1,20 +1,24 @@
 process VERKKO {
     tag "$meta.id"
     label 'process_high'
+    label 'process_assembly'
 
     conda "${moduleDir}/environment.yml"
     container "${ workflow.containerEngine == 'singularity' && !task.ext.singularity_pull_docker_container ?
-        'https://depot.galaxyproject.org/singularity/verkko:2.1--h45dadce_0' :
-        'quay.io/biocontainers/verkko:2.1--h45dadce_0' }"
+        'https://depot.galaxyproject.org/singularity/verkko%3A2.2--h45dadce_0' :
+        'quay.io/biocontainers/verkko:2.2--h45dadce_0' }"
+
+        
 
     input:
-    tuple val(meta), path(hifi_reads)
-    tuple val(meta), path(ont_reads)
-    tuple val(meta), path(hic_reads_1)
-    tuple val(meta), path(hic_reads_2)
-    tuple val(meta), path(porec_reads)
-    tuple val(meta), path(pat_hapmer)
-    tuple val(meta), path(mat_hapmer)
+    val(meta)
+    path(hifi_reads)
+    path(ont_reads)
+    path(hic_reads_1)
+    path(hic_reads_2)
+    path(porec_reads)
+    path(pat_hapmer)
+    path(mat_hapmer)
     val telomere_motif
     path reference
 
@@ -32,7 +36,8 @@ process VERKKO {
     task.ext.when == null || task.ext.when
 
     script:
-    def args = task.ext.args ?: ''
+    def snakemake_scratchdir = "$workDir/snakmake_scratch"
+    def args = task.ext.args ?: params.verkko_args
     prefix = task.ext.prefix ?: "${meta.id}"
     def hifi_input = hifi_reads ? "--hifi $hifi_reads" : ""
     def ont_input = ont_reads ? "--nano $ont_reads" : ""
@@ -43,6 +48,10 @@ process VERKKO {
     def ref_arg = reference ? "--ref $reference" : ""
 
     """
+    # set snakemake scratch dir in process dir see https://github.com/snakemake/snakemake/issues/1593
+    mkdir \${PWD}/snakemake_scratch
+    export XDG_CACHE_HOME=\${PWD}/snakemake_scratch
+
     verkko \\
         -d $prefix \\
         $hifi_input \\
