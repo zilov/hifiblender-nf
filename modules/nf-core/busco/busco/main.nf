@@ -1,6 +1,6 @@
 process BUSCO_BUSCO {
     tag "$meta.id"
-    label 'process_medium'
+    label 'process_high'
 
     conda "${moduleDir}/environment.yml"
     container "${ workflow.containerEngine == 'singularity' && !task.ext.singularity_pull_docker_container ?
@@ -33,7 +33,7 @@ process BUSCO_BUSCO {
     if ( mode !in [ 'genome', 'proteins', 'transcriptome' ] ) {
         error "Mode must be one of 'genome', 'proteins', or 'transcriptome'."
     }
-    def args = task.ext.args ?: ''
+    def args = task.ext.args ?: params.busco_args
     def prefix = task.ext.prefix ?: "${meta.id}-${lineage}"
     def busco_config = config_file ? "--config $config_file" : ''
     def busco_lineage = lineage.equals('auto') ? '--auto-lineage' : "--lineage_dataset ${lineage}"

@@ -58,12 +58,11 @@
             "busco_lineage": {
                 "type": "string",
                 "default": "auto",
-                "pattern": "^\\S+\\(_odb10\\)"
+                "pattern": "^\\S+_odb10$"
             },
             "busco_lineage_local": {
                 "type": "string",
-                "format": "directory-path",
-                "pattern": "^\\S+\\(_odb10\\)"
+                "format": "directory-path"
             },
             "mery_db_local": {
                 "type": "string",

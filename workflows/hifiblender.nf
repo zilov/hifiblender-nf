@@ -22,7 +22,7 @@ include { HIFIASM                } from '../modules/nf-core/hifiasm/main.nf'
 include { FLYE                   } from '../modules/nf-core/flye/main.nf'
 // include { NEXTDENOVO            } from '../modules/nextdenovo/main'
 include { QUAST                 } from '../modules/nf-core/quast/main.nf'
-// include { BUSCO                 } from '../modules/busco/main'
+include { BUSCO_BUSCO                 } from '../modules/nf-core/busco/busco/main'
 // include { COMPLEASM             } from '../modules/compleasm/main'
 // include { MERFIN                } from '../modules/merfin/main'
 // include { SLIZER                } from '../modules/slizer/main'
@@ -417,14 +417,34 @@ workflow HIFIBLENDER {
 
     if ('busco' in tools) {
 
-        //
+        
         // MODULE: Run BUSCO
         // on local lineage db if provided, or will download db (could define it with auto mode)
-        //
 
-        // BUSCO (
-        //     ch_assembly
-        // )
+        // Extract BUSCO lineage information from ch_sample_map
+        busco_lineage_info = ch_sample_map
+            .map { sample ->
+                def lineage = sample.busco_lineage ?: 'auto'
+                def lineage_local = sample.busco_lineage_local ?: []
+                [sample.sample.id, lineage, lineage_local]
+            }
+
+        // Combine combined_fa_channel with BUSCO lineage information
+        busco_input_channel = combined_fa_channel
+            .map { meta, fasta -> [meta.sample_id, meta, fasta] }
+            .combine(busco_lineage_info, by: 0)
+            .map { sample_id, meta, fasta, lineage, lineage_local ->
+                [meta, fasta, lineage, lineage_local]
+            }
+        
+
+        BUSCO_BUSCO (
+            busco_input_channel.map { it[0..1] },  // meta, fasta
+            'genome', // mode
+            busco_input_channel.map { it[2] }, // lineage
+            busco_input_channel.map { it[3] }, // lineage_dir
+            [], // busco config
+        )
 
     }
 

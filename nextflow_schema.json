@@ -68,6 +68,10 @@
                 "nextdenovo_args": {
                     "type": "string",
                     "description": "String of additional nextdenovo args"
+                },
+                "busco_args": {
+                    "type": "string",
+                    "description": "String of additional busco args"
                 }
             }
         },
