@@ -15,11 +15,13 @@ include { MERYL_UNIONSUM         } from "../modules/nf-core/meryl/unionsum/main.
 include { GENOMESCOPE2           } from "../modules/nf-core/genomescope2/main.nf"
 include { GFASTATS               } from "../modules/nf-core/gfastats/main.nf"
 include { PARSE_INPUT            } from "../subworkflows/local/parse_input.nf"
-include { VERKKO                 } from '../modules/local/verkko/main'
+include { VERKKO                 } from '../modules/local/verkko/main.nf'
+include { CREATE_NEXTDENOVO_CONFIG } from '../modules/local/nextdenovo/main.nf'
+include { NEXTDENOVO } from '../modules/local/nextdenovo/main.nf'
 include { HIFIASM                } from '../modules/nf-core/hifiasm/main.nf'
 include { FLYE                   } from '../modules/nf-core/flye/main.nf'
 // include { NEXTDENOVO            } from '../modules/nextdenovo/main'
- include { QUAST                 } from '../modules/nf-core/quast/main.nf'
+include { QUAST                 } from '../modules/nf-core/quast/main.nf'
 // include { BUSCO                 } from '../modules/busco/main'
 // include { COMPLEASM             } from '../modules/compleasm/main'
 // include { MERFIN                } from '../modules/merfin/main'
@@ -124,7 +126,7 @@ workflow HIFIBLENDER {
         // outputs kmers stats - coverage value for QV estimation and others
         //
 
-        GENOMESCOPE2 (
+        ch_genomescope_out = GENOMESCOPE2 (
             ch_meryl_sample_histogram
         )
         
@@ -153,10 +155,10 @@ workflow HIFIBLENDER {
     ch_to_assemble = ch_sample_map.filter { sample -> !sample.assembly_fasta and !sample.assembly_gfa }
     
     input_assembly_ch_fa = ch_sample_map.filter {sample -> sample.assembly_fasta}
-        .map {sample -> [[id: sample.sample.id, assembler: "user_provided"], sample.assembly_fasta]}
+        .map {sample -> [[id: "${sample.sample.id}_user_provided", sample_id: sample.sample.id, assembler: "user_provided"], sample.assembly_fasta]}
     
     input_assembly_ch_gfa = ch_sample_map.filter {sample -> sample.assembly_gfa}
-        .map {sample -> [[id: sample.sample.id, assembler: "user_provided"], sample.assembly_gfa]}
+        .map {sample -> [[id: "${sample.sample.id}_user_provided", sample_id: sample.sample.id, assembler: "user_provided"], sample.assembly_gfa]}
 
     assembler_channels_fa << input_assembly_ch_fa
     assembler_channels_gfa << input_assembly_ch_gfa
@@ -194,6 +196,7 @@ workflow HIFIBLENDER {
             .map { meta, fasta -> 
                 def newMeta = meta.clone()
                 newMeta.id = "${meta.id}_hifiasm"
+                newMeta.sample_id = meta.id
                 newMeta.assembler = 'hifiasm'
                 [ newMeta, fasta ]
             }
@@ -204,6 +207,7 @@ workflow HIFIBLENDER {
             .map { meta, gfa -> 
                 def newMeta = meta.clone()
                 newMeta.id = "${meta.id}_hifiasm"
+                newMeta.sample_id = meta.id
                 newMeta.assembler = 'hifiasm'
                 [ newMeta, gfa ]
             }
@@ -221,21 +225,21 @@ workflow HIFIBLENDER {
         //
 
         verkko_input_ch = ch_to_assemble
-        .filter { sample -> (sample.hifi) }
-        .map { sample ->
-            [       
-                    sample.sample,
-                    sample.hifi ? file(sample.hifi) : [], // hifi
-                    sample.ont ? file(sample.ont) : [], //ont
-                    sample.hic_1 ? file(sample.hic_1) : [], // hic_1
-                    sample.hic_2 ? file(sample.hic_2) : [], // hic_2
-                    [], // porec
-                    sample.parental_kmers ? file(sample.parental_kmers) : [], // paternal hapmers
-                    sample.maternal_kmers ? file(sample.maternal_kmers) : [], // maternal hapmers
-                    [],
-                    []
-            ]
-        }
+            .filter { sample -> (sample.hifi) }
+            .map { sample ->
+                [       
+                        sample.sample,
+                        sample.hifi ? file(sample.hifi) : [], // hifi
+                        sample.ont ? file(sample.ont) : [], //ont
+                        sample.hic_1 ? file(sample.hic_1) : [], // hic_1
+                        sample.hic_2 ? file(sample.hic_2) : [], // hic_2
+                        [], // porec
+                        sample.parental_kmers ? file(sample.parental_kmers) : [], // paternal hapmers
+                        sample.maternal_kmers ? file(sample.maternal_kmers) : [], // maternal hapmers
+                        [],
+                        []
+                ]
+            }
 
         verkko_output_ch = VERKKO(
             verkko_input_ch.map { it[0] },  // meta
@@ -254,6 +258,7 @@ workflow HIFIBLENDER {
             .map { meta, fasta -> 
                 def newMeta = meta.clone()
                 newMeta.id = "${meta.id}_verkko"
+                newMeta.sample_id = meta.id
                 newMeta.assembler = 'verkko'
                 [ newMeta, fasta ]
             }
@@ -264,6 +269,7 @@ workflow HIFIBLENDER {
             .map { meta, gfa -> 
                 def newMeta = meta.clone()
                 newMeta.id = "${meta.id}_verkko"
+                newMeta.sample_id = meta.id
                 newMeta.assembler = 'verkko'
                 [ newMeta, gfa ]
             }
@@ -275,14 +281,58 @@ workflow HIFIBLENDER {
     if ('nextdenovo' in tools) {
         
         //
-        // MODULE: Run nextdenovo
+        // MODULE: Run NextDenovo
         //
 
-        // NEXTDENOVO (
-        //     ch_samplesheet
-        // )
+        nextdenovo_input_ch = ch_to_assemble
+            .filter { sample -> sample.hifi || sample.ont }
+            .map { sample ->
+                def reads = sample.hifi ?: sample.ont
+                def read_type = sample.hifi ? 'hifi' : 'ont'
+                [
+                    sample.sample,  // meta
+                    reads,          // reads
+                    read_type       // read_type
+                ]
+            }
+
+        // Combine the nextdenovo input channel with the GenomeScope results
+        nextdenovo_combined_ch = nextdenovo_input_ch
+            .join(ch_genomescope_out.summary, by: 0)  // Join based on the sample ID (assuming it's in the first position of both channels)
+
+        // Create NextDenovo config
+        nextdenovo_config_ch = CREATE_NEXTDENOVO_CONFIG(
+            nextdenovo_combined_ch.map { it[0] },  // meta
+            nextdenovo_combined_ch.map { it[3] },  // GenomeScope summary
+            nextdenovo_combined_ch.map { it[2] }   // read_type
+        )
+
+        // Run NextDenovo
+        nextdenovo_output_ch = NEXTDENOVO(
+            nextdenovo_input_ch.map { it[0..1] },  // [meta, reads]
+            nextdenovo_config_ch.config
+        )
+
+        nextdenovo_assembly_fasta = nextdenovo_output_ch.assembly
+            .map { meta, fasta -> 
+                def newMeta = meta.clone()
+                newMeta.id = "${meta.id}_nextdenovo"
+                newMeta.sample_id = meta.id
+                newMeta.assembler = 'nextdenovo'
+                [ newMeta, fasta ]
+            }
 
         assembler_channels_fa << nextdenovo_assembly_fasta
+
+        nextdenovo_assembly_gfa = nextdenovo_output_ch.graph
+            .map { meta, gfa -> 
+                def newMeta = meta.clone()
+                newMeta.id = "${meta.id}_nextdenovo"
+                newMeta.sample_id = meta.id
+                newMeta.assembler = 'nextdenovo'
+                [ newMeta, gfa ]
+            }
+        
         assembler_channels_gfa << nextdenovo_assembly_gfa
     }
 
@@ -313,6 +363,7 @@ workflow HIFIBLENDER {
             .map { meta, fasta -> 
                 def newMeta = meta.clone()
                 newMeta.id = "${meta.id}_flye"
+                newMeta.sample_id = meta.id
                 newMeta.assembler = 'flye'
                 [ newMeta, fasta ]
             }
@@ -323,6 +374,7 @@ workflow HIFIBLENDER {
             .map { meta, gfa -> 
                 def newMeta = meta.clone()
                 newMeta.id = "${meta.id}_flye"
+                newMeta.sample_id = meta.id
                 newMeta.assembler = 'flye'
                 [ newMeta, gfa ]
             }
@@ -336,6 +388,8 @@ workflow HIFIBLENDER {
     assembler_channels_fa.each { channel ->
         combined_fa_channel = combined_fa_channel.mix(channel)
     }
+
+    combined_fa_channel.view()
 
     // Combine gfa assembly channels
     combined_gfa_channel = Channel.empty()
