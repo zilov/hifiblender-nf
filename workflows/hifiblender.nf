@@ -13,6 +13,7 @@ include { MERYL_COUNT            } from '../modules/nf-core/meryl/count/main.nf'
 include { MERYL_HISTOGRAM        } from "../modules/nf-core/meryl/histogram/main.nf"
 include { MERYL_UNIONSUM         } from "../modules/nf-core/meryl/unionsum/main.nf"
 include { GENOMESCOPE2           } from "../modules/nf-core/genomescope2/main.nf"
+include { PARSE_GENOMESCOPE2           } from "../modules/local/parse_genomescope2/main.nf"
 include { GFASTATS               } from "../modules/nf-core/gfastats/main.nf"
 include { PARSE_INPUT            } from "../subworkflows/local/parse_input.nf"
 include { VERKKO                 } from '../modules/local/verkko/main.nf'
@@ -20,11 +21,10 @@ include { CREATE_NEXTDENOVO_CONFIG } from '../modules/local/nextdenovo/main.nf'
 include { NEXTDENOVO } from '../modules/local/nextdenovo/main.nf'
 include { HIFIASM                } from '../modules/nf-core/hifiasm/main.nf'
 include { FLYE                   } from '../modules/nf-core/flye/main.nf'
-// include { NEXTDENOVO            } from '../modules/nextdenovo/main'
 include { QUAST                 } from '../modules/nf-core/quast/main.nf'
 include { BUSCO_BUSCO                 } from '../modules/nf-core/busco/busco/main'
 // include { COMPLEASM             } from '../modules/compleasm/main'
-// include { MERFIN                } from '../modules/merfin/main'
+include { MERFIN_HIST                } from '../modules/nf-core/merfin/hist/main.nf'
 // include { SLIZER                } from '../modules/slizer/main'
 
 
@@ -91,61 +91,50 @@ workflow HIFIBLENDER {
     // builds k-mer database with meryl, calculates coverage with genomescope and assess qv with merfin after assembly of genome 
     //
 
-    if ('qv' in tools) {
+    //
+    // MODULE: Run Meryl db build 
+    // takes as input illumina, ont or hifi reads, k value (default is 23)
+    // outputs meryl kmer database and histogram
+    // if several reads formats provided, combines databases with meryl union resulting in hybrid database
+    // for parental phasing creates meryl database for each parent - used in verkko
+    //
 
-        //
-        // MODULE: Run Meryl db build 
-        // takes as input illumina, ont or hifi reads, k value (default is 23)
-        // outputs meryl kmer database and histogram
-        // if several reads formats provided, combines databases with meryl union resulting in hybrid database
-        // for parental phasing creates meryl database for each parent - used in verkko
-        //
+    MERYL_COUNT (
+        ch_sample_reads, params.k
+    )
 
-        MERYL_COUNT (
-            ch_sample_reads, params.k
-        )
+    ch_meryl_db = MERYL_COUNT.out.meryl_db
 
-        ch_meryl_db = MERYL_COUNT.out.meryl_db
-
-        // sum pair end meryl databases
-        MERYL_UNIONSUM(
-            ch_meryl_db, params.k
-        )
-        
-        ch_meryl_sample_db = MERYL_UNIONSUM.out.meryl_db
-
-        MERYL_HISTOGRAM (
-            ch_meryl_sample_db, params.k
-        )
-
-        ch_meryl_sample_histogram = MERYL_HISTOGRAM.out.hist
-
-        //
-        // MODULE: Run genomescope2
-        // takes as input kmers histogram from meryl and k value (default is 23)
-        // outputs kmers stats - coverage value for QV estimation and others
-        //
-
-        ch_genomescope_out = GENOMESCOPE2 (
-            ch_meryl_sample_histogram
-        )
-        
-        
-        //
-        // MODULE: Run MERFIN
-        // input assembly, coverage value and meryl database (hybrid if several reads types)
-        // outputs QV, QV*, K completeness values
-        //
+    // sum pair end meryl databases
+    MERYL_UNIONSUM(
+        ch_meryl_db, params.k
+    )
+    
+    ch_meryl_sample_db = MERYL_UNIONSUM.out.meryl_db
 
 
-        // MERFIN (
-        //     ch_samplesheet
-        //     ch_assembly
-        //     ch_meryl
-        //     ch_genomescope
-        // )
+    MERYL_HISTOGRAM (
+        ch_meryl_sample_db, params.k
+    )
 
-    }
+    ch_meryl_sample_histogram = MERYL_HISTOGRAM.out.hist
+
+    //
+    // MODULE: Run genomescope2
+    // takes as input kmers histogram from meryl and k value (default is 23)
+    // outputs kmers stats - coverage value for QV estimation and others
+    //
+
+    ch_genomescope_out = GENOMESCOPE2 (
+        ch_meryl_sample_histogram
+    )
+    
+    // prepare input for PARSE_GENOMESCOPE2
+    ch_genomescope_parse_input = ch_genomescope_out.model
+                                    .combine(ch_genomescope_out.summary, by: 0)
+
+    // extracts kmercov peak, estimated length (required for nextdenovo run) and lookup table
+    ch_parsed_genomescope = PARSE_GENOMESCOPE2(ch_genomescope_parse_input)
 
     // Process samples that need assembly
     
@@ -389,8 +378,6 @@ workflow HIFIBLENDER {
         combined_fa_channel = combined_fa_channel.mix(channel)
     }
 
-    combined_fa_channel.view()
-
     // Combine gfa assembly channels
     combined_gfa_channel = Channel.empty()
     assembler_channels_gfa.each { channel ->
@@ -444,6 +431,43 @@ workflow HIFIBLENDER {
             busco_input_channel.map { it[2] }, // lineage
             busco_input_channel.map { it[3] }, // lineage_dir
             [], // busco config
+        )
+
+    }
+
+    if ('qv' in tools) {
+
+        //
+        // MODULE: Run MERFIN
+        // input assembly, coverage value and meryl database (hybrid if several reads types)
+        // outputs QV, QV*, K completeness values
+        //
+
+        meryl_db_for_merfin = ch_meryl_sample_db.map { meta, db -> [meta.id, db]}
+        parse_genomescope2_for_merfin = ch_parsed_genomescope.map{ meta, cov, length -> [meta.id, cov]}
+        lookup_table = ch_genomescope_out.lookup_table ? ch_sample_map.map{sample -> [sample.sample.id, []]} : ch_genomescope_out.lookup_table
+
+        // First, let's prepare the main input channel
+        merfin_input_channel = combined_fa_channel.map { meta, fasta -> 
+                [meta.sample_id, meta, fasta]
+            }
+            .combine(meryl_db_for_merfin, by:0)
+            .combine(parse_genomescope2_for_merfin, by:0)
+            .combine(lookup_table, by:0)
+            .map { sample_id, meta, fasta, meryl_db, kmercov, lookup ->
+                 [meta, fasta, meryl_db, kmercov, lookup]
+             }.view()
+
+        merfin_output = MERFIN_HIST (
+            merfin_input_channel
+                .map{meta, fasta, meryl_db, kmercov, lookup -> [meta, fasta]},
+            merfin_input_channel
+                .map{meta, fasta, meryl_db, kmercov, lookup -> [meta, meryl_db]},
+            merfin_input_channel
+                .map{meta, fasta, meryl_db, kmercov, lookup -> lookup},
+            [], //seqmers
+            merfin_input_channel
+                .map{meta, fasta, meryl_db, kmercov, lookup -> kmercov},
         )
 
     }

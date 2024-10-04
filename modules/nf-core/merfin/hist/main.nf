@@ -16,6 +16,7 @@ process MERFIN_HIST {
 
     output:
     tuple val(meta), path("*.hist")     , emit: hist
+    tuple val(meta), path("*_qv_results.tsv"), emit: qv_results
     path("*.hist.stderr.log")           , emit: log_stderr
     path "versions.yml"                 , emit: versions
 
@@ -41,6 +42,24 @@ process MERFIN_HIST {
         -output ${prefix}.hist \\
         2> >( tee ${prefix}.hist.stderr.log )
 
+    # Parse the stderr log and extract the desired parameters
+    awk '
+        /K-mers not found in reads \\(missing\\)/ {missing=\$NF}
+        /K-mers overly represented in assembly/ {overrep=\$NF}
+        /K-mers found in the assembly/ {found=\$NF}
+        /Missing QV:/ {missing_qv=\$NF}
+        /Merfin QV\\*:/ {merfin_qv=\$NF}
+        END {
+            print "Sample\t${prefix}" > "${prefix}_qv_results.tsv"
+            print "Parameter\tValue" >> "${prefix}_qv_results.tsv"
+            print "K-mers not found in reads (missing)\t" missing >> "${prefix}_qv_results.tsv"
+            print "K-mers overly represented in assembly\t" overrep >> "${prefix}_qv_results.tsv"
+            print "K-mers found in the assembly\t" found >> "${prefix}_qv_results.tsv"
+            print "Missing QV\t" missing_qv >> "${prefix}_qv_results.tsv"
+            print "Merfin QV*\t" merfin_qv >> "${prefix}_qv_results.tsv"
+        }
+    ' ${prefix}.hist.stderr.log
+
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":
         merfin: \$( merfin --version |& sed 's/merfin //' )
@@ -55,6 +74,7 @@ process MERFIN_HIST {
     """
     touch ${prefix}.hist
     touch ${prefix}.hist.stderr.log
+    touch ${prefix}_qv_results.tsv
 
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":
