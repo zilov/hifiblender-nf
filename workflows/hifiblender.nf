@@ -10,6 +10,7 @@ include { paramsSummaryMultiqc   } from '../subworkflows/nf-core/utils_nfcore_pi
 include { softwareVersionsToYAML } from '../subworkflows/nf-core/utils_nfcore_pipeline'
 include { methodsDescriptionText } from '../subworkflows/local/utils_nfcore_hifiblender_pipeline'
 include { MERYL_COUNT            } from '../modules/nf-core/meryl/count/main.nf'
+include { MERYL_COUNT as MERYL_COUNT_ASSEMBLY } from '../modules/nf-core/meryl/count/main.nf'
 include { MERYL_HISTOGRAM        } from "../modules/nf-core/meryl/histogram/main.nf"
 include { MERYL_UNIONSUM         } from "../modules/nf-core/meryl/unionsum/main.nf"
 include { GENOMESCOPE2           } from "../modules/nf-core/genomescope2/main.nf"
@@ -100,7 +101,7 @@ workflow HIFIBLENDER {
     //
 
     MERYL_COUNT (
-        ch_sample_reads, params.k
+        ch_sample_reads, params.k, 'reads'
     )
 
     ch_meryl_db = MERYL_COUNT.out.meryl_db
@@ -371,7 +372,6 @@ workflow HIFIBLENDER {
         assembler_channels_gfa << flye_assembly_gfa
    }
 
-
     // Combine fasta assembly channels
     combined_fa_channel = Channel.empty()
     assembler_channels_fa.each { channel ->
@@ -383,6 +383,16 @@ workflow HIFIBLENDER {
     assembler_channels_gfa.each { channel ->
         combined_gfa_channel = combined_gfa_channel.mix(channel)
     }
+
+    MERYL_COUNT_ASSEMBLY(
+        combined_fa_channel,
+        params.k, 
+        'assembly'
+    )
+
+
+
+    // 
     
 
     //
