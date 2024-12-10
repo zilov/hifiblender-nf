@@ -384,17 +384,6 @@ workflow HIFIBLENDER {
         combined_gfa_channel = combined_gfa_channel.mix(channel)
     }
 
-    MERYL_COUNT_ASSEMBLY(
-        combined_fa_channel,
-        params.k, 
-        'assembly'
-    )
-
-
-
-    // 
-    
-
     //
     // MODULE: Run QUAST
     //
@@ -452,8 +441,15 @@ workflow HIFIBLENDER {
         // input assembly, coverage value and meryl database (hybrid if several reads types)
         // outputs QV, QV*, K completeness values
         //
-
-        meryl_db_for_merfin = ch_meryl_sample_db.map { meta, db -> [meta.id, db]}
+	
+	MERYL_COUNT_ASSEMBLY(
+            combined_fa_channel,
+            params.k, 
+            'assembly'
+        )
+        
+        meryl_db_assembly = MERYL_COUNT_ASSEMBLY.out.meryl_db.map{ meta, db -> [meta.sample_id, db]}
+        meryl_db_reads = ch_meryl_sample_db.map{ meta, db -> [meta.id, db]}
         parse_genomescope2_for_merfin = ch_parsed_genomescope.map{ meta, cov, length -> [meta.id, cov]}
         lookup_table = ch_genomescope_out.lookup_table ? ch_sample_map.map{sample -> [sample.sample.id, []]} : ch_genomescope_out.lookup_table
 
@@ -461,23 +457,27 @@ workflow HIFIBLENDER {
         merfin_input_channel = combined_fa_channel.map { meta, fasta -> 
                 [meta.sample_id, meta, fasta]
             }
-            .combine(meryl_db_for_merfin, by:0)
+            .combine(meryl_db_reads, by:0)
             .combine(parse_genomescope2_for_merfin, by:0)
             .combine(lookup_table, by:0)
-            .map { sample_id, meta, fasta, meryl_db, kmercov, lookup ->
-                 [meta, fasta, meryl_db, kmercov, lookup]
-             }.view()
+            .combine(meryl_db_assembly, by:0)
+            .map { sample_id, meta, fasta, meryl_db, kmercov, lookup, seqmers ->
+                 [meta, fasta, meryl_db, kmercov, lookup, seqmers]
+             }
+
+        merfin_input_channel.view()
 
         merfin_output = MERFIN_HIST (
             merfin_input_channel
-                .map{meta, fasta, meryl_db, kmercov, lookup -> [meta, fasta]},
+                .map{meta, fasta, meryl_db, kmercov, lookup, seqmers -> [meta, fasta]},
             merfin_input_channel
-                .map{meta, fasta, meryl_db, kmercov, lookup -> [meta, meryl_db]},
+                .map{meta, fasta, meryl_db, kmercov, lookup, seqmers -> [meta, meryl_db]},
             merfin_input_channel
-                .map{meta, fasta, meryl_db, kmercov, lookup -> lookup},
-            [], //seqmers
+                .map{meta, fasta, meryl_db, kmercov, lookup, seqmers -> lookup},
             merfin_input_channel
-                .map{meta, fasta, meryl_db, kmercov, lookup -> kmercov},
+                .map{meta, fasta, meryl_db, kmercov, lookup, seqmers -> seqmers}, 
+            merfin_input_channel
+                .map{meta, fasta, meryl_db, kmercov, lookup, seqmers -> kmercov},
         )
 
     }
