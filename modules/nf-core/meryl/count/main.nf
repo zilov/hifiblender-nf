@@ -8,9 +8,10 @@ process MERYL_COUNT {
         'biocontainers/meryl:1.4.1--h4ac6f70_0' }"
 
     input:
-    tuple val(meta), path(reads)
+    tuple val(meta), path(inputs)
     val kvalue
-
+    val data_type
+    
     output:
     tuple val(meta), path("${meta.id}/*.meryl"), emit: meryl_db
     path "versions.yml"                        , emit: versions
@@ -22,16 +23,29 @@ process MERYL_COUNT {
     def args = task.ext.args ?: ''
     def prefix = task.ext.prefix ?: "${meta.id}"
     def outdir = "${meta.id}"
+    
     """
     mkdir -p ${outdir}
-    for READ in ${reads}; do
-        meryl count \\
-            k=${kvalue} \\
-            threads=${task.cpus} \\
-            memory=${task.memory.toGiga()} \\
-            ${args} \\
-            \$READ \\
-            output ${outdir}/read.\${READ%.f*}.meryl
+    for INPUT in ${inputs}; do
+        if [[ "${data_type}" == "reads" ]]; then
+            meryl count \\
+                k=${kvalue} \\
+                threads=${task.cpus} \\
+                memory=${task.memory.toGiga()} \\
+                ${args} \\
+                \$INPUT \\
+                output ${outdir}/read.\${INPUT%.f*}.meryl
+        elif [[ "${data_type}" == "assembly" ]]; then
+            meryl count \\
+                k=${kvalue} \\
+                threads=${task.cpus} \\
+                memory=${task.memory.toGiga()} \\
+                ${args} \$INPUT \\
+                output ${outdir}/assembly.\${INPUT%.f*}.meryl
+        else 
+             echo "Unsupported data_type passed. Valid variants are 'reads' and 'assembly'." 
+             exit 1
+         fi    
     done
 
     cat <<-END_VERSIONS > versions.yml
