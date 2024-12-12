@@ -16,6 +16,7 @@ include { GENOMESCOPE2           } from "../modules/nf-core/genomescope2/main.nf
 include { PARSE_GENOMESCOPE2           } from "../modules/local/parse_genomescope2/main.nf"
 include { GFASTATS               } from "../modules/nf-core/gfastats/main.nf"
 include { PARSE_INPUT            } from "../subworkflows/local/parse_input.nf"
+include { MINIMAP2 } from "../subworkflows/local/minimap2.nf"
 include { VERKKO                 } from '../modules/local/verkko/main.nf'
 include { CREATE_NEXTDENOVO_CONFIG } from '../modules/local/nextdenovo/main.nf'
 include { NEXTDENOVO } from '../modules/local/nextdenovo/main.nf'
@@ -395,6 +396,14 @@ workflow HIFIBLENDER {
         [[:], []]   // meta3, gff
     )
 
+    labeled_reads = ch_to_assemble.map { sampleMap -> [sampleMap.sample + [sample_id: sampleMap.sample["id"]], sampleMap] }
+    result = MINIMAP2(combined_fa_channel, labeled_reads)
+
+
+    
+
+
+    // MINIMAP2(assembler_channels_fa, flat_reads)
 
     //
     // MODULE: Run GFASTATS
